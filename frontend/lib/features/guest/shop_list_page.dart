@@ -889,7 +889,7 @@ class _ShopListPageState extends State<ShopListPage> {
                                           borderRadius:
                                               BorderRadius.circular(10),
                                           border:
-                                              Border.all(color: Colors.grey!),
+                                              Border.all(color: Colors.grey),
                                         ),
                                         child: Text(
                                           shop['description'],
@@ -1347,7 +1347,7 @@ class _ShopListPageState extends State<ShopListPage> {
                               border: Border.all(
                                 color: isSelected
                                     ? const Color(0xFF6E9B4C)
-                                    : Colors.grey!,
+                                    : Colors.grey,
                               ),
                             ),
                             child: Text(

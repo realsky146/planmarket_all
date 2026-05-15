@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'vendor_edit_profile_page.dart';
 import 'vendor_home.dart';
 
 // ══════════════════════════════════════════════════════════

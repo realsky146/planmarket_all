@@ -77,7 +77,7 @@ class _VendorEditProfilePageState extends State<VendorEditProfilePage> {
   final _tagCtrl = TextEditingController();
 
   // ── State ─────────────────────────────────────────────
-  String _priceRange = '฿';
+  final String _priceRange = '฿';
   List<String> _menuItems = [];
   List<String> _tags = [];
   String _profileImageUrl = '';

@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:plan_market/features/guest/shop_list_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_page.dart';
-import 'market_detail_page.dart';
 import 'market_list_page.dart';
 import 'profile_page.dart';
 import '../auth/select_role_page.dart';

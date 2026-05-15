@@ -609,7 +609,7 @@ class _VendorProfilePageState extends State<VendorProfilePage> {
                   ),
                 ),
                 if (!isEditable)
-                  Icon(
+                  const Icon(
                     Icons.lock_outline_rounded,
                     size: 14,
                     color: Colors.grey,

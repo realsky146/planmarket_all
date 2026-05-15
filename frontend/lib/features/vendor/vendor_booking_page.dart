@@ -503,7 +503,7 @@ class _VendorBookingPageState extends State<VendorBookingPage> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFF9FAFB),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey!),
+                            border: Border.all(color: Colors.grey),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -835,7 +835,7 @@ class _VendorBookingPageState extends State<VendorBookingPage> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.info_outline_rounded,
+                                const Icon(Icons.info_outline_rounded,
                                     color: Colors.blue, size: 18),
                                 const SizedBox(width: 8),
                                 Expanded(
@@ -1438,7 +1438,7 @@ class _VendorBookingPageState extends State<VendorBookingPage> {
                                 ),
                               ),
                               // Arrow
-                              Icon(Icons.arrow_forward_rounded,
+                              const Icon(Icons.arrow_forward_rounded,
                                   size: 14, color: Colors.grey),
                               // วันสิ้นสุด
                               Expanded(
@@ -1486,7 +1486,7 @@ class _VendorBookingPageState extends State<VendorBookingPage> {
                       ),
                     )
                   else
-                    Icon(Icons.edit_calendar_rounded,
+                    const Icon(Icons.edit_calendar_rounded,
                         size: 14, color: Colors.grey),
                 ],
               ),

@@ -50,7 +50,7 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
         case 1:
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => VendorMarketListPage()),
+            MaterialPageRoute(builder: (_) => const VendorMarketListPage()),
           );
           break;
         case 2:
@@ -171,7 +171,8 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.favorite_border_rounded, size: 64, color: Colors.grey),
+          const Icon(Icons.favorite_border_rounded,
+              size: 64, color: Colors.grey),
           const SizedBox(height: 16),
           Text(
             'ยังไม่มีตลาดที่ถูกใจ',
@@ -189,7 +190,7 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
             onPressed: () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => VendorMarketListPage()),
+                MaterialPageRoute(builder: (_) => const VendorMarketListPage()),
               );
             },
             icon: const Icon(Icons.search_rounded, size: 18),

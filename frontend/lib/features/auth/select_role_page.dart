@@ -399,7 +399,7 @@ class _RoleButton extends StatelessWidget {
             ),
 
             // Arrow
-            Icon(
+            const Icon(
               Icons.chevron_right_rounded,
               color: Colors.grey,
               size: 22,

@@ -17,7 +17,7 @@ class SignUpPage extends StatefulWidget {
 class _SignUpPage extends StatefulWidget {
   final String role; // ✅ เพิ่ม field เก็บ role
 
-  const _SignUpPage({super.key, required this.role}); // ✅ this.role
+  const _SignUpPage({required this.role}); // ✅ this.role
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();

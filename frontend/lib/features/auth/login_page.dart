@@ -298,3 +298,5 @@ class _TopWavePainter extends CustomPainter {
   @override
   bool shouldRepaint(_) => false;
 }
+
+// test all app
