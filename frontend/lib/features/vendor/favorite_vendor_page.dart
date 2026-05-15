@@ -6,7 +6,6 @@ import 'vendor_home.dart';
 import 'vendor_market_list_page.dart';
 import 'profile_vendor_page.dart';
 
-// ✅ class ชื่อ VendorFavoritePage
 class VendorFavoritePage extends StatefulWidget {
   const VendorFavoritePage({super.key});
 
