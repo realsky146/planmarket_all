@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const db = require\\('better-sqlite3'\\)\\('planmarket.db'\\); try { console.log\\(db.prepare\\('SELECT * FROM bookings LIMIT 1'\\).get\\(\\)\\); } catch\\(e\\) { console.log\\(e.message\\); } try { console.log\\(db.prepare\\('SELECT * FROM stalls LIMIT 1'\\).get\\(\\)\\); } catch\\(e\\) { console.log\\(e.message\\); } try { console.log\\(db.prepare\\('SELECT * FROM markets LIMIT 1'\\).get\\(\\)\\); } catch\\(e\\) { console.log\\(e.message\\); }\")"
+    ]
+  }
+}

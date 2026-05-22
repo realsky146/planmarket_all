@@ -70,13 +70,6 @@ class AuthService {
     required String phone,
     required String role,
   }) async {
-    if (role == 'customer') {
-      return {
-        'success': false,
-        'message': 'ระบบยังไม่รองรับการสมัครลูกค้า กรุณาใช้งานในฐานะ Guest',
-      };
-    }
-
     final result = await ApiService.register(
       name: name,
       email: email,

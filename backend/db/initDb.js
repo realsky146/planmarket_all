@@ -8,7 +8,7 @@ export const initDb = () => {
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('seller', 'market')),
+      role TEXT NOT NULL CHECK(role IN ('seller', 'market', 'customer')),
       status TEXT NOT NULL DEFAULT 'approved' CHECK(status IN ('pending', 'approved', 'rejected')),
       image_url TEXT
     )

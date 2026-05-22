@@ -6,6 +6,7 @@ import { initDb } from "./db/initDb.js";
 import authRoutes from "./routes/authRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import marketRoutes from "./routes/marketRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/markets", marketRoutes);
 app.use("/bookings", bookingRoutes);
+app.use("/users", userRoutes);
 
 initDb();
 

@@ -5,6 +5,7 @@ import 'vendor_home.dart';
 import 'favorite_vendor_page.dart';
 import 'profile_vendor_page.dart';
 import 'vendor_booking_page.dart';
+import '../../services/vendor_service.dart';
 
 class VendorMarketListPage extends StatefulWidget {
   const VendorMarketListPage({super.key});
@@ -18,84 +19,49 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
   String _selectedFilter = 'แนะนำ';
   final _searchCtrl = TextEditingController();
   String _searchText = '';
+  bool _isLoading = true;
 
   final _filters = ['แนะนำ', 'ใกล้ฉัน', 'คนเยอะ', 'ราคาถูก', 'เปิดอยู่'];
 
-  // 🔌 Mock ตลาด (ดึงจาก API ทีหลัง)
-  final List<Map<String, dynamic>> _markets = [
-    {
-      'id': 'm001',
-      'name': 'ตลาดจตุจักร (โซนกลางคืน)',
-      'distance': '1.2 กม.',
-      'location': 'จตุจักร กรุงเทพฯ',
-      'time': '17:00 - 23:00 น.',
-      'isOpen': true,
-      'tags': ['อาหาร', 'แฟชั่น', 'มือสอง'],
-      'stallsAvailable': 12,
-      'totalStalls': 120,
-      'pricePerDay': 300,
-      'traffic': 'สูง',
-      'rating': 4.8,
-      'isFavorite': true,
-      'reason': 'ใกล้คุณที่สุด',
-      'image':
-          'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400',
-    },
-    {
-      'id': 'm002',
-      'name': 'ตลาดนัดรถไฟ',
-      'distance': '4.2 กม.',
-      'location': 'รามอินทรา กรุงเทพฯ',
-      'time': '18:00 - 23:00 น.',
-      'isOpen': true,
-      'tags': ['อาหาร', 'แฟชั่น', 'มือสอง'],
-      'stallsAvailable': 25,
-      'totalStalls': 200,
-      'pricePerDay': 250,
-      'traffic': 'สูงมาก',
-      'rating': 4.9,
-      'isFavorite': false,
-      'reason': 'คนเดินเยอะที่สุด',
-      'image':
-          'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=400',
-    },
-    {
-      'id': 'm003',
-      'name': 'ตลาดเซฟวันโก',
-      'distance': '7.2 กม.',
-      'location': 'สวนหลวง กรุงเทพฯ',
-      'time': '17:00 - 23:00 น.',
-      'isOpen': false,
-      'tags': ['อาหาร', 'ของใช้'],
-      'stallsAvailable': 40,
-      'totalStalls': 150,
-      'pricePerDay': 200,
-      'traffic': 'ปานกลาง',
-      'rating': 4.5,
-      'isFavorite': false,
-      'reason': 'แผงว่างเยอะ',
-      'image':
-          'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400',
-    },
-    {
-      'id': 'm004',
-      'name': 'ตลาดนัดสวนหลวง',
-      'distance': '3.5 กม.',
-      'location': 'พระราม 4 กรุงเทพฯ',
-      'time': '16:00 - 22:00 น.',
-      'isOpen': true,
-      'tags': ['อาหาร', 'เสื้อผ้า'],
-      'stallsAvailable': 8,
-      'totalStalls': 80,
-      'pricePerDay': 180,
-      'traffic': 'สูง',
-      'rating': 4.6,
-      'isFavorite': false,
-      'reason': 'ราคาถูกที่สุด',
-      'image':
-          'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=400',
-    },
-  ];
+  List<Map<String, dynamic>> _markets = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMarkets();
+  }
+
+  Future<void> _loadMarkets() async {
+    setState(() => _isLoading = true);
+    try {
+      final raw = await VendorService().getMarkets();
+      if (!mounted) return;
+      setState(() {
+        _markets = raw.map((m) => {
+          'id': m['id']?.toString() ?? '',
+          'name': m['name'] ?? '',
+          'distance': '0.0 กม.',
+          'location': m['description'] ?? '',
+          'time': 'ตรวจสอบที่ตลาด',
+          'isOpen': m['isOpen'] ?? true,
+          'tags': <String>[],
+          'stallsAvailable': 1,
+          'totalStalls': m['totalStalls'] ?? 0,
+          'pricePerDay': 0,
+          'traffic': 'ปานกลาง',
+          'rating': (m['rating'] ?? 4.0).toDouble(),
+          'isFavorite': false,
+          'reason': 'แนะนำสำหรับคุณ',
+          'image': m['imageUrl'] ?? '',
+        }).toList();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _markets = []);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   // ── Filter ────────────────────────────────────────────
   List<Map<String, dynamic>> get _filteredMarkets {
@@ -118,10 +84,12 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
     switch (_selectedFilter) {
       case 'ใกล้ฉัน':
         list.sort((a, b) {
-          final da =
-              double.parse((a['distance'] as String).replaceAll(' กม.', ''));
-          final db =
-              double.parse((b['distance'] as String).replaceAll(' กม.', ''));
+          final da = double.tryParse(
+                  (a['distance'] as String).replaceAll(' กม.', '')) ??
+              0;
+          final db = double.tryParse(
+                  (b['distance'] as String).replaceAll(' กม.', '')) ??
+              0;
           return da.compareTo(db);
         });
         break;
@@ -298,7 +266,11 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
 
                   // ── Market List ──────────────────────────
                   Expanded(
-                    child: _filteredMarkets.isEmpty
+                    child: _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: Color(0xFF8CBC63)))
+                        : _filteredMarkets.isEmpty
                         ? Center(
                             child: Text(
                               'ไม่พบตลาดที่ค้นหา',
@@ -336,7 +308,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
   // ══════════════════════════════════════════════════════
   Widget _buildMarketCard(Map<String, dynamic> m) {
     final isOpen = m['isOpen'] as bool;
-    final tags = m['tags'] as List<String>;
+    final tags = (m['tags'] as List).cast<String>();
     final available = m['stallsAvailable'] as int;
     final total = m['totalStalls'] as int;
     final traffic = m['traffic'] as String;

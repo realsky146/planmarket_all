@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 /// iOS Simulator     → 'http://localhost:3000'
 /// มือถือจริง        → 'http://192.168.x.x:3000'
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:3000';
+  static const String baseUrl = 'http://localhost:3000';
 
   static final _client = http.Client();
 

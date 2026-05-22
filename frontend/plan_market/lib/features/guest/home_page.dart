@@ -436,7 +436,7 @@ class _HomePageState extends State<HomePage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'หน้าแรก',
+                          'หน้าหลัก',
                           style: GoogleFonts.kanit(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,

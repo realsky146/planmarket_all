@@ -1,132 +1,89 @@
-import 'mock_data.dart';
+import 'api_service.dart';
 
 class MarketService {
-  // ── ตลาดที่ approved (Guest/Vendor ใช้) ────────────────────
   Future<List<Map<String, dynamic>>> getMarkets() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return MockData.markets.where((m) => m['status'] == 'approved').toList();
+    final result = await ApiService.getMarkets();
+    if (!result['success']) return [];
+    final raw = result['data'] as List<dynamic>;
+    return raw.map((e) => _mapMarket(e as Map<String, dynamic>)).toList();
   }
 
-  // ── คำขอรออนุมัติ (Admin) ──────────────────────────────────
-  Future<List<Map<String, dynamic>>> getPendingRequests() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return MockData.markets.where((m) => m['status'] == 'pending').toList();
-  }
+  Future<List<Map<String, dynamic>>> getAllMarkets() async => getMarkets();
 
-  // ── ตลาดทั้งหมด (Admin) ────────────────────────────────────
-  Future<List<Map<String, dynamic>>> getAllMarkets() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return List.from(MockData.markets);
-  }
+  // TODO: เพิ่ม GET /markets?status=pending ใน backend
+  Future<List<Map<String, dynamic>>> getPendingRequests() async => [];
 
-  // ── ดึงตลาดตาม ID ─────────────────────────────────────────
   Future<Map<String, dynamic>?> getMarketById(String id) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    final markets = await getMarkets();
     try {
-      return MockData.markets.firstWhere((m) => m['id'] == id);
+      return markets.firstWhere((m) => m['id'].toString() == id);
     } catch (_) {
       return null;
     }
   }
 
-  // ── อนุมัติตลาด ────────────────────────────────────────────
-  Future<Map<String, dynamic>> approveMarket(String marketId) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    try {
-      final index = MockData.markets.indexWhere((m) => m['id'] == marketId);
-      if (index == -1) {
-        return {'success': false, 'message': 'ไม่พบตลาด'};
-      }
-
-      MockData.markets[index] = {
-        ...MockData.markets[index],
-        'status': 'approved',
-      };
-
-      // ✅ อัพเดต owner status ด้วย
-      final ownerId = MockData.markets[index]['ownerId'];
-      final userIndex = MockData.users.indexWhere((u) => u['id'] == ownerId);
-      if (userIndex != -1) {
-        MockData.users[userIndex] = {
-          ...MockData.users[userIndex],
-          'status': 'approved',
-        };
-      }
-
-      return {'success': true, 'message': 'อนุมัติตลาดสำเร็จ'};
-    } catch (e) {
-      return {'success': false, 'message': 'เกิดข้อผิดพลาด: $e'};
-    }
-  }
-
-  // ── ปฏิเสธตลาด ─────────────────────────────────────────────
-  Future<Map<String, dynamic>> rejectMarket(
-    String marketId, {
-    String reason = '',
-  }) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    try {
-      final index = MockData.markets.indexWhere((m) => m['id'] == marketId);
-      if (index == -1) {
-        return {'success': false, 'message': 'ไม่พบตลาด'};
-      }
-
-      MockData.markets[index] = {
-        ...MockData.markets[index],
-        'status': 'rejected',
-        'rejectReason': reason,
-      };
-
-      final ownerId = MockData.markets[index]['ownerId'];
-      final userIndex = MockData.users.indexWhere((u) => u['id'] == ownerId);
-      if (userIndex != -1) {
-        MockData.users[userIndex] = {
-          ...MockData.users[userIndex],
-          'status': 'rejected',
-        };
-      }
-
-      return {'success': true, 'message': 'ปฏิเสธตลาดสำเร็จ'};
-    } catch (e) {
-      return {'success': false, 'message': 'เกิดข้อผิดพลาด: $e'};
-    }
-  }
-
-  // ── ดึงการจอง Vendor ────────────────────────────────────────
-  Future<List<Map<String, dynamic>>> getVendorBookings(String vendorId) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return MockData.bookings.where((b) => b['vendorId'] == vendorId).toList();
-  }
-
-  // ⬇️ ยังขาด! เพิ่มให้ครบ ─────────────────────────────────
-
-  // ✅ ดึงตลาดของ Owner คนนั้น
   Future<List<Map<String, dynamic>>> getMarketsByOwner(String ownerId) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return MockData.markets.where((m) => m['ownerId'] == ownerId).toList();
+    final all = await getMarkets();
+    return all.where((m) => m['ownerId']?.toString() == ownerId).toList();
   }
 
-  // ✅ ดึงการจองของตลาดนั้น (Market Owner ใช้)
-  Future<List<Map<String, dynamic>>> getBookingsByMarket(
-      String marketId) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return MockData.bookings.where((b) => b['marketId'] == marketId).toList();
+  Future<List<Map<String, dynamic>>> getMarketStalls(int marketId) async {
+    final result = await ApiService.getMarketStalls(marketId);
+    if (!result['success']) return [];
+    final raw = result['data'] as List<dynamic>;
+    return raw.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  // ✅ อนุมัติ/ปฏิเสธ การจอง (Market Owner ใช้)
+  Future<List<Map<String, dynamic>>> getMarketOwnerBookings(String ownerId) async {
+    final id = int.tryParse(ownerId) ?? 0;
+    final result = await ApiService.getMarketOwnerBookings(id);
+    if (!result['success']) return [];
+    final raw = result['data'] as List<dynamic>;
+    return raw.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getVendorBookings(String vendorId) async {
+    final id = int.tryParse(vendorId) ?? 0;
+    final result = await ApiService.getVendorBookings(id);
+    if (!result['success']) return [];
+    final raw = result['data'] as List<dynamic>;
+    return raw.map((e) => e as Map<String, dynamic>).toList();
+  }
+
   Future<Map<String, dynamic>> updateBookingStatus(
     String bookingId,
     String status,
   ) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    final index = MockData.bookings.indexWhere((b) => b['id'] == bookingId);
-    if (index == -1) {
-      return {'success': false, 'message': 'ไม่พบการจอง'};
-    }
-    MockData.bookings[index] = {
-      ...MockData.bookings[index],
-      'status': status,
+    final id = int.tryParse(bookingId) ?? 0;
+    if (status == 'approved') return ApiService.approveBooking(id);
+    if (status == 'rejected') return ApiService.rejectBooking(id);
+    return {'success': false, 'message': 'status ไม่ถูกต้อง'};
+  }
+
+  // TODO: เพิ่ม PATCH /markets/:id/approve ใน backend
+  Future<Map<String, dynamic>> approveMarket(String marketId) async {
+    return {'success': false, 'message': 'ยังไม่มี API endpoint นี้'};
+  }
+
+  Future<Map<String, dynamic>> rejectMarket(String marketId, {String reason = ''}) async {
+    return {'success': false, 'message': 'ยังไม่มี API endpoint นี้'};
+  }
+
+  Map<String, dynamic> _mapMarket(Map<String, dynamic> raw) {
+    return {
+      'id': raw['id'],
+      'name': raw['name'] ?? '',
+      'description': raw['description'] ?? '',
+      'ownerId': raw['owner_id'],
+      'imageUrl': raw['image_url'],
+      'status': 'approved',
+      'location': raw['location'] ?? '',
+      'openTime': raw['open_time'] ?? '08:00',
+      'closeTime': raw['close_time'] ?? '20:00',
+      'isOpen': true,
+      'rating': raw['rating'] ?? 4.0,
+      'totalStalls': raw['total_stalls'] ?? 0,
+      'availableStalls': raw['available_stalls'] ?? 0,
     };
-    return {'success': true, 'message': 'อัพเดตสถานะสำเร็จ'};
   }
 }

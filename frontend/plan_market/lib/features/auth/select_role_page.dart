@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plan_market/features/auth/signin_page.dart';
+import 'package:plan_market/features/auth/signup_page.dart';
 import 'package:plan_market/features/guest/shop_list_page.dart';
 
 import '../guest/home_page.dart';
@@ -146,7 +147,7 @@ class _SelectRolePageState extends State<SelectRolePage> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) =>
-                                          const SignInPage(role: 'customer'),
+                                          const SignUpPage(role: 'customer'),
                                     ),
                                   ),
                                 ),

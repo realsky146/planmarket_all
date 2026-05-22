@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
+import '../../services/market_service.dart';
 import '../auth/select_role_page.dart';
 
 class MarketOwnerHome extends StatefulWidget {
@@ -365,8 +367,29 @@ final List<BookingRequestModel> mockBookings = [
 // ══════════════════════════════════════════════════════════
 // Tab 1: Dashboard
 // ══════════════════════════════════════════════════════════
-class _DashboardTab extends StatelessWidget {
+class _DashboardTab extends StatefulWidget {
   const _DashboardTab();
+
+  @override
+  State<_DashboardTab> createState() => _DashboardTabState();
+}
+
+class _DashboardTabState extends State<_DashboardTab> {
+  List<Map<String, dynamic>> _apiBookings = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ownerId = prefs.getString('userId') ?? '0';
+    final data = await MarketService().getMarketOwnerBookings(ownerId);
+    if (!mounted) return;
+    setState(() => _apiBookings = data);
+  }
 
   Widget _statCard(String label, String value, Color bgColor,
       {Color textColor = const Color(0xFF1F2937), VoidCallback? onTap}) {
@@ -681,8 +704,9 @@ class _DashboardTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalStalls = mockStalls.length;
     final freeStalls = mockStalls.where((s) => !s.isBooked).length;
-    final pendingBookings =
-        mockBookings.where((b) => b.status == 'pending').length;
+    final pendingBookings = _apiBookings
+        .where((b) => (b['status'] ?? '') == 'pending')
+        .length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFEEEEEE),
@@ -723,10 +747,24 @@ class _DashboardTab extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      ...mockBookings
-                          .where((b) => b.status == 'pending')
+                      ..._apiBookings
+                          .where((b) => (b['status'] ?? '') == 'pending')
                           .take(3)
-                          .map((b) => _bookingRequestCard(context, b)),
+                          .map((b) => _bookingRequestCard(
+                                context,
+                                BookingRequestModel.fromJson({
+                                  'id': b['id']?.toString() ?? '',
+                                  'shop_name': b['shop_name'] ?? '',
+                                  'stall_id': '',
+                                  'stall_number': b['stall_number'] ?? '',
+                                  'zone': '',
+                                  'type': '',
+                                  'date': b['created_at'] ?? '',
+                                  'status': b['status'] ?? 'pending',
+                                  'vendor_phone': '',
+                                  'vendor_email': '',
+                                }),
+                              )),
                       const SizedBox(height: 16),
                       _sectionTitle('ประกาศด่วน'),
                       const SizedBox(height: 8),
@@ -1364,28 +1402,51 @@ class _BookingTab extends StatefulWidget {
 }
 
 class _BookingTabState extends State<_BookingTab> {
-  late List<Map<String, dynamic>> _requests;
+  List<Map<String, dynamic>> _requests = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _requests = mockBookings
-        .map((b) => {
-              'id': b.id,
-              'shop': b.shopName,
-              'stall': b.stallNumber,
-              'zone': b.zone,
-              'type': b.type,
-              'date': b.date,
-              'status': b.status,
-              'phone': b.vendorPhone,
-              'email': b.vendorEmail,
-            })
-        .toList();
+    _loadBookings();
   }
 
-  void _updateStatus(int index, String status) =>
-      setState(() => _requests[index]['status'] = status);
+  Future<void> _loadBookings() async {
+    setState(() => _isLoading = true);
+    final prefs = await SharedPreferences.getInstance();
+    final ownerId = prefs.getString('userId') ?? '0';
+    final data = await MarketService().getMarketOwnerBookings(ownerId);
+    if (!mounted) return;
+    setState(() {
+      _requests = data.map((b) => {
+        'id': b['id']?.toString() ?? '',
+        'shop': b['shop_name'] ?? '',
+        'stall': b['stall_number'] ?? '',
+        'zone': '',
+        'type': '',
+        'date': b['created_at'] ?? '',
+        'status': b['status'] ?? 'pending',
+        'phone': '',
+        'email': '',
+      }).toList();
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _updateStatus(int index, String newStatus) async {
+    final id = _requests[index]['id'] as String;
+    final result = await MarketService().updateBookingStatus(id, newStatus);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      setState(() => _requests[index]['status'] = newStatus);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result['message'] ?? 'เกิดข้อผิดพลาด',
+            style: GoogleFonts.kanit()),
+        backgroundColor: const Color(0xFFEF4444),
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1398,7 +1459,17 @@ class _BookingTabState extends State<_BookingTab> {
         backgroundColor: const Color(0xFF8CBC63),
         elevation: 0,
       ),
-      body: ListView.separated(
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF8CBC63)))
+          : _requests.isEmpty
+              ? Center(
+                  child: Text('ไม่มีคำขอจอง',
+                      style: GoogleFonts.kanit(color: Colors.grey)))
+              : RefreshIndicator(
+                  color: const Color(0xFF8CBC63),
+                  onRefresh: _loadBookings,
+                  child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: _requests.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -1530,7 +1601,8 @@ class _BookingTabState extends State<_BookingTab> {
             ),
           );
         },
-      ),
+              ),
+            ),
     );
   }
 }

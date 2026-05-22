@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_service.dart';
 
 // ══════════════════════════════════════════════════════════
 // 🔌 API Services
@@ -220,6 +222,7 @@ class _VendorBookingPageState extends State<VendorBookingPage> {
 
   final Set<String> _selectedStalls = {};
   List<Map<String, dynamic>> _marketRules = [];
+  Map<String, int> _stallIdMap = {}; // stall_number → stall id
 
   @override
   void initState() {
@@ -230,15 +233,47 @@ class _VendorBookingPageState extends State<VendorBookingPage> {
   Future<void> _loadLayout() async {
     setState(() => _isLoadingLayout = true);
     try {
-      final result = await MarketLayoutApiService.getMarketLayout(
-        widget.market['id'] ?? 'm001',
-      );
+      final marketId =
+          int.tryParse(widget.market['id']?.toString() ?? '0') ?? 0;
+      final result = await ApiService.getMarketStalls(marketId);
+
       if (mounted && result['success'] == true) {
+        final rawStalls = result['data'] as List<dynamic>;
+
+        // map stall_number → stall id
+        final idMap = <String, int>{};
+        for (final s in rawStalls) {
+          idMap[s['stall_number'] as String] = s['id'] as int;
+        }
+
+        // group stalls by first letter → rows
+        final rowMap = <String, List<Map<String, dynamic>>>{};
+        for (final s in rawStalls) {
+          final stallNum = s['stall_number'] as String;
+          final letter = stallNum.isNotEmpty ? stallNum[0] : '?';
+          rowMap.putIfAbsent(letter, () => []).add({
+            'stallId': stallNum,
+            'status': s['status'] ?? 'available',
+            'pricePerDay':
+                (widget.market['pricePerDay'] as num?)?.toInt() ?? 300,
+          });
+        }
+
+        final rows = rowMap.entries
+            .map((e) => {
+                  'rowId': 'row_${e.key}',
+                  'rowLabel': e.key,
+                  'stalls': e.value,
+                })
+            .toList();
+
         setState(() {
-          _zones = List<Map<String, dynamic>>.from(result['data']['zones']);
-          _pricePerDay = (result['data']['pricePerDay'] as num?)?.toInt() ??
-              (widget.market['pricePerDay'] as num?)?.toInt() ??
-              300;
+          _zones = [
+            {'zoneId': 'z001', 'zoneName': 'แผงทั้งหมด', 'rows': rows}
+          ];
+          _stallIdMap = idMap;
+          _pricePerDay =
+              (widget.market['pricePerDay'] as num?)?.toInt() ?? 300;
         });
       }
     } catch (e) {
@@ -945,27 +980,46 @@ class _VendorBookingPageState extends State<VendorBookingPage> {
   // ══════════════════════════════════════════════════════
   Future<void> _submitBooking(BuildContext dialogCtx) async {
     try {
-      final result = await MarketLayoutApiService.createBooking(
-        marketId: widget.market['id'] ?? 'm001',
-        stallIds: _selectedStalls.toList(),
-        startDate: _startDate!,
-        endDate: _endDate!,
-        selectedWeekdays: _selectedWeekdays.toList(),
-        totalDays: _totalDays,
-        totalPrice: _totalPrice,
-      );
+      final prefs = await SharedPreferences.getInstance();
+      final sellerId =
+          int.tryParse(prefs.getString('userId') ?? '0') ?? 0;
+      final shopName = prefs.getString('userName') ?? 'ร้านค้า';
+
+      bool anySuccess = false;
+      String? errorMsg;
+
+      for (final stallNumber in _selectedStalls) {
+        final stallId = _stallIdMap[stallNumber];
+        if (stallId == null) continue;
+
+        final result = await ApiService.createBooking(
+          stallId: stallId,
+          sellerId: sellerId,
+          shopName: shopName,
+        );
+
+        if (result['success'] == true) {
+          anySuccess = true;
+        } else {
+          errorMsg = result['message'];
+        }
+      }
+
       if (!mounted) return;
       Navigator.pop(dialogCtx);
-      if (result['success'] == true) {
+
+      if (anySuccess) {
         setState(() {
           _selectedStalls.clear();
           _startDate = null;
           _endDate = null;
           _selectedWeekdays.clear();
         });
-        _showSuccessDialog(result['data']);
+        _showSuccessDialog(
+            {'bookingId': 'BK${DateTime.now().millisecondsSinceEpoch}'});
+        _loadLayout(); // refresh สถานะแผง
       } else {
-        _showSnackbar(result['message'] ?? 'เกิดข้อผิดพลาด', isError: true);
+        _showSnackbar(errorMsg ?? 'เกิดข้อผิดพลาด', isError: true);
       }
     } catch (e) {
       if (!mounted) return;

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import '../vendor/vendor_home.dart';
 
@@ -18,11 +17,15 @@ class _SignUpVendorPageState extends State<SignUpVendorPage> {
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
 
   // ── State ─────────────────────────────────────────────────
   String? _selectedCategory;
   bool _loading = false;
   String? _errorMsg;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   // ── ตัวเลือกประเภทร้านค้า ─────────────────────────────────
   final List<String> _categories = [
@@ -51,6 +54,8 @@ class _SignUpVendorPageState extends State<SignUpVendorPage> {
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _descCtrl.dispose();
+    _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -77,6 +82,18 @@ class _SignUpVendorPageState extends State<SignUpVendorPage> {
       setState(() => _errorMsg = 'กรุณากรอกเบอร์โทรศัพท์');
       return;
     }
+    if (_passwordCtrl.text.isEmpty) {
+      setState(() => _errorMsg = 'กรุณากรอกรหัสผ่าน');
+      return;
+    }
+    if (_passwordCtrl.text.length < 6) {
+      setState(() => _errorMsg = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+      return;
+    }
+    if (_passwordCtrl.text != _confirmPasswordCtrl.text) {
+      setState(() => _errorMsg = 'รหัสผ่านไม่ตรงกัน');
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -87,7 +104,7 @@ class _SignUpVendorPageState extends State<SignUpVendorPage> {
       final result = await AuthService().signUp(
         name: _ownerNameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
-        password: '123456', // default — เพิ่มช่อง password ได้ทีหลัง
+        password: _passwordCtrl.text,
         phone: _phoneCtrl.text.trim(),
         role: 'vendor',
       );
@@ -96,14 +113,7 @@ class _SignUpVendorPageState extends State<SignUpVendorPage> {
         setState(() => _loading = false);
 
         if (result['success'] == true) {
-          // บันทึก session
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('role', 'vendor');
-          await prefs.setString('status', 'active');
-          await prefs.setString('email', _emailCtrl.text.trim());
-
           if (!mounted) return;
-
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const VendorHome()),
@@ -236,6 +246,48 @@ class _SignUpVendorPageState extends State<SignUpVendorPage> {
                                   controller: _phoneCtrl,
                                   hint: 'กรุณากรอกเบอร์โทรศัพท์...',
                                   keyboardType: TextInputType.phone,
+                                ),
+                                const SizedBox(height: 14),
+
+                                // รหัสผ่าน
+                                _buildLabel('รหัสผ่าน'),
+                                const SizedBox(height: 6),
+                                _buildTextField(
+                                  controller: _passwordCtrl,
+                                  hint: 'อย่างน้อย 6 ตัวอักษร...',
+                                  obscure: _obscurePassword,
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_rounded
+                                          : Icons.visibility_rounded,
+                                      color: Colors.grey,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(
+                                        () => _obscurePassword = !_obscurePassword),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+
+                                // ยืนยันรหัสผ่าน
+                                _buildLabel('ยืนยันรหัสผ่าน'),
+                                const SizedBox(height: 6),
+                                _buildTextField(
+                                  controller: _confirmPasswordCtrl,
+                                  hint: 'กรอกรหัสผ่านอีกครั้ง...',
+                                  obscure: _obscureConfirm,
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscureConfirm
+                                          ? Icons.visibility_off_rounded
+                                          : Icons.visibility_rounded,
+                                      color: Colors.grey,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(
+                                        () => _obscureConfirm = !_obscureConfirm),
+                                  ),
                                 ),
                                 const SizedBox(height: 14),
 

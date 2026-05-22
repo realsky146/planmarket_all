@@ -210,7 +210,6 @@ class _SignInPageState extends State<SignInPage> {
                                   ),
                                   const SizedBox(height: 20),
                                   if (_errorMsg != null) _buildErrorBox(),
-                                  _buildMockHint(),
                                   const SizedBox(height: 16),
                                   _buildFieldLabel('E-mail'),
                                   const SizedBox(height: 6),
@@ -356,6 +355,25 @@ class _SignInPageState extends State<SignInPage> {
                                       ),
                                     ),
                                   ),
+                                  if (widget.role == 'customer') ...[
+                                    const SizedBox(height: 8),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pushAndRemoveUntil(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => const HomePage()),
+                                        (route) => false,
+                                      ),
+                                      child: Text(
+                                        'ใช้งานแบบ Guest (ไม่สมัครบัญชี)',
+                                        style: GoogleFonts.kanit(
+                                          fontSize: 13,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -394,73 +412,6 @@ class _SignInPageState extends State<SignInPage> {
                 style: GoogleFonts.kanit(color: Colors.red, fontSize: 13),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMockHint() {
-    String hintEmail = '';
-    String hintPass = '123456';
-    switch (widget.role) {
-      case 'customer':
-        hintEmail = 'customer@test.com';
-        break;
-      case 'vendor':
-        hintEmail = 'vendor@test.com';
-        break;
-      case 'market':
-        hintEmail = 'market@test.com';
-        break;
-      case 'super_admin':
-        hintEmail = 'admin@planmarket.com';
-        hintPass = 'admin1234';
-        break;
-      default:
-        return const SizedBox.shrink();
-    }
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _emailCtrl.text = hintEmail;
-          _passCtrl.text = hintPass;
-          _errorMsg = null;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF8CBC63).withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF8CBC63).withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.tips_and_updates_outlined,
-                color: Color(0xFF8CBC63), size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '🔑 Mock Account — กดเพื่อ autofill',
-                    style: GoogleFonts.kanit(
-                      fontSize: 12,
-                      color: const Color(0xFF6E9B4C),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '$hintEmail  /  $hintPass',
-                    style: GoogleFonts.kanit(fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.touch_app_rounded,
-                color: Color(0xFF8CBC63), size: 16),
           ],
         ),
       ),

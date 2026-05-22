@@ -5,6 +5,7 @@ import 'vendor_market_list_page.dart';
 import 'favorite_vendor_page.dart';
 import '../vendor/profile_vendor_page.dart';
 import 'dart:math';
+import '../../services/vendor_service.dart';
 
 // ══════════════════════════════════════════════════════════
 // Mock Data
@@ -435,15 +436,25 @@ class _VendorHomeState extends State<VendorHome> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      await Future.delayed(const Duration(milliseconds: 400));
+      final raw = await VendorService().getMyBookings();
       if (!mounted) return;
       setState(() {
-        _bookings = VendorMockData.bookings
-            .map((b) => Map<String, dynamic>.from(b))
-            .toList();
-        _notifications = VendorMockData.notifications
-            .map((n) => Map<String, dynamic>.from(n))
-            .toList();
+        _bookings = raw.map((b) => {
+          'id': b['id'] ?? '',
+          'marketName': b['marketName'] ?? '',
+          'marketId': b['marketId'] ?? '',
+          'location': '',
+          'stallIds': [b['stallNumber'] ?? ''],
+          'startDate': b['createdAt'] ?? '',
+          'endDate': '',
+          'totalDays': 0,
+          'totalPrice': 0,
+          'status': b['status'] ?? 'pending',
+          'createdAt': b['createdAt'] ?? '',
+          'image': '',
+          'note': '',
+        }).toList();
+        _notifications = [];
       });
     } catch (e) {
       if (!mounted) return;
