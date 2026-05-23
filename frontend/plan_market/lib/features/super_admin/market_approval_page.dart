@@ -34,10 +34,7 @@ class _MarketApprovalPageState extends State<MarketApprovalPage>
 
   Future<void> _loadData() async {
     setState(() => _loading = true);
-
-    // ✅ แก้: getAllMarkets() แทน getAllRequests()
-    final all = await MarketService().getAllMarkets();
-
+    final all = await MarketService().getMarketOwnerUsers();
     setState(() {
       _pendingList = all.where((r) => r['status'] == 'pending').toList();
       _approvedList = all.where((r) => r['status'] == 'approved').toList();

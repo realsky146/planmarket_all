@@ -2,9 +2,14 @@ import db from "../db/database.js";
 
 export const getMarkets = (req, res) => {
   const sql = `
-    SELECT id, name, description, owner_id, image_url
-    FROM markets
-    ORDER BY id ASC
+    SELECT m.id, m.name, m.description, m.owner_id, m.image_url,
+           m.location, m.open_time, m.close_time, m.rating,
+           COUNT(s.id) AS total_stalls,
+           SUM(CASE WHEN s.status = 'available' THEN 1 ELSE 0 END) AS available_stalls
+    FROM markets m
+    LEFT JOIN stalls s ON s.market_id = m.id
+    GROUP BY m.id
+    ORDER BY m.id ASC
   `;
 
   db.all(sql, [], (err, rows) => {
@@ -73,12 +78,16 @@ export const getMarketBookings = (req, res) => {
 };
 
 export const createMarket = (req, res) => {
-  const { name, description, owner_id, image_url } = req.body;
+  const { name, description, owner_id, image_url, location, open_time, close_time, rating } = req.body;
   if (!name || !owner_id) {
     return res.status(400).json({ message: "Missing required fields" });
   }
-  const sql = `INSERT INTO markets (name, description, owner_id, image_url) VALUES (?, ?, ?, ?)`;
-  db.run(sql, [name, description || null, owner_id, image_url || null], function (err) {
+  const sql = `INSERT INTO markets (name, description, owner_id, image_url, location, open_time, close_time, rating)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+  db.run(sql, [
+    name, description || null, owner_id, image_url || null,
+    location || '', open_time || '08:00', close_time || '20:00', rating || 4.0
+  ], function (err) {
     if (err) return res.status(500).json({ message: err.message });
     return res.status(201).json({ message: "Market created", marketId: this.lastID });
   });

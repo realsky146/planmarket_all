@@ -60,13 +60,33 @@ class MarketService {
     return {'success': false, 'message': 'status ไม่ถูกต้อง'};
   }
 
-  // TODO: เพิ่ม PATCH /markets/:id/approve ใน backend
-  Future<Map<String, dynamic>> approveMarket(String marketId) async {
-    return {'success': false, 'message': 'ยังไม่มี API endpoint นี้'};
+  Future<Map<String, dynamic>> approveMarket(String userId) async {
+    final id = int.tryParse(userId) ?? 0;
+    return ApiService.approveUser(id);
   }
 
-  Future<Map<String, dynamic>> rejectMarket(String marketId, {String reason = ''}) async {
-    return {'success': false, 'message': 'ยังไม่มี API endpoint นี้'};
+  Future<Map<String, dynamic>> rejectMarket(String userId, {String reason = ''}) async {
+    final id = int.tryParse(userId) ?? 0;
+    return ApiService.rejectUser(id);
+  }
+
+  Future<List<Map<String, dynamic>>> getMarketOwnerUsers() async {
+    final result = await ApiService.getUsers();
+    if (!result['success']) return [];
+    final raw = result['data'] as List<dynamic>;
+    return raw
+        .where((u) => (u as Map<String, dynamic>)['role'] == 'market')
+        .map((u) => {
+              'id': u['id'].toString(),
+              'marketName': u['name'] ?? '-',
+              'ownerName': u['name'] ?? '-',
+              'email': u['email'] ?? '-',
+              'status': u['status'] ?? 'pending',
+              'phone': '-',
+              'location': '-',
+              'submittedAt': '-',
+            })
+        .toList();
   }
 
   Map<String, dynamic> _mapMarket(Map<String, dynamic> raw) {

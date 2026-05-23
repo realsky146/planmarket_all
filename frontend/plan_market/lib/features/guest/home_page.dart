@@ -2,163 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plan_market/features/auth/select_role_page.dart';
 import 'package:plan_market/features/guest/shop_list_page.dart';
+import 'package:plan_market/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'favorite_page.dart';
 import 'market_list_page.dart';
 import 'market_detail_page.dart';
 import 'profile_page.dart';
-
-// ══════════════════════════════════════════════════════════
-// 🔌 API Service
-// ══════════════════════════════════════════════════════════
-class HomeApiService {
-  static const String baseUrl = 'https://api.planmarket.com/v1';
-
-  static const _img1 =
-      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400';
-  static const _img2 =
-      'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=400';
-  static const _img3 =
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400';
-  static const _img4 =
-      'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=400';
-  static const _img5 =
-      'https://images.unsplash.com/photo-1526367790999-0150786686a2?w=400';
-
-  // 🔌 TODO: GET $baseUrl/markets?sort=nearest
-  static Future<List<Map<String, dynamic>>> getRecommendedMarkets() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return [
-      {
-        'id': 'm001',
-        'name': 'ตลาดจตุจักร (โซนกลางคืน)',
-        'distance': '1.2 กม.',
-        'location': 'จตุจักร กรุงเทพฯ',
-        'openTime': '17:00 - 23:00',
-        'isOpen': true,
-        'totalStalls': 120,
-        'availableStalls': 45,
-        'tags': ['อาหาร', 'แฟชั่น', 'มือสอง'],
-        'isFavorite': false,
-        'image': _img1,
-        'highlight': 'คนเยอะที่สุด',
-        'eventCount': 3,
-      },
-      {
-        'id': 'm002',
-        'name': 'ตลาดนัดรถไฟ',
-        'distance': '4.2 กม.',
-        'location': 'รามอินทรา กรุงเทพฯ',
-        'openTime': '18:00 - 23:00',
-        'isOpen': true,
-        'totalStalls': 80,
-        'availableStalls': 20,
-        'tags': ['วินเทจ', 'ของสะสม', 'อาหาร'],
-        'isFavorite': false,
-        'image': _img2,
-        'highlight': 'มีงานพิเศษ',
-        'eventCount': 1,
-      },
-      {
-        'id': 'm003',
-        'name': 'ตลาดเซฟวันโก',
-        'distance': '7.2 กม.',
-        'location': 'สวนหลวง กรุงเทพฯ',
-        'openTime': '17:00 - 23:00',
-        'isOpen': true,
-        'totalStalls': 60,
-        'availableStalls': 15,
-        'tags': ['อาหาร', 'ของสด', 'ราคาถูก'],
-        'isFavorite': false,
-        'image': _img3,
-        'highlight': 'ใกล้คุณ',
-        'eventCount': 0,
-      },
-    ];
-  }
-
-  // 🔌 TODO: GET $baseUrl/shops?recommended=true
-  static Future<List<Map<String, dynamic>>> getRecommendedShops() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return [
-      {
-        'id': 's001',
-        'shopName': 'ร้านผัดไทยป้าแดง',
-        'category': 'อาหารไทย',
-        'marketName': 'ตลาดจตุจักร',
-        'distance': '1.2 กม.',
-        'isOpen': true,
-        'image': _img3,
-        'tags': ['อาหาร', 'ยอดนิยม'],
-      },
-      {
-        'id': 's002',
-        'shopName': 'ร้านส้มตำนางฟ้า',
-        'category': 'อาหารอีสาน',
-        'marketName': 'ตลาดนัดรถไฟ',
-        'distance': '4.2 กม.',
-        'isOpen': true,
-        'image': _img4,
-        'tags': ['อาหาร', 'เผ็ด'],
-      },
-      {
-        'id': 's003',
-        'shopName': 'ร้านของทะเลสดๆ',
-        'category': 'อาหารทะเล',
-        'marketName': 'ตลาดเซฟวันโก',
-        'distance': '7.2 กม.',
-        'isOpen': true,
-        'image': _img5,
-        'tags': ['ทะเล', 'สด'],
-      },
-      {
-        'id': 's004',
-        'shopName': 'โกโก้ในตำนาน',
-        'category': 'เครื่องดื่ม',
-        'marketName': 'ตลาดจตุจักร',
-        'distance': '1.2 กม.',
-        'isOpen': false,
-        'image': _img1,
-        'tags': ['เครื่องดื่ม', 'ของหวาน'],
-      },
-    ];
-  }
-
-  // 🔌 TODO: GET $baseUrl/favorites (Header: Authorization: Bearer <token>)
-  static Future<List<Map<String, dynamic>>> getUserFavorites(
-      String token) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return [
-      {
-        'id': 's001',
-        'shopName': 'ร้านผัดไทยป้าแดง',
-        'category': 'อาหารไทย',
-        'marketName': 'ตลาดจตุจักร',
-        'distance': '1.2 กม.',
-        'isOpen': true,
-        'image': _img3,
-        'tags': ['อาหาร', 'ยอดนิยม'],
-      },
-      {
-        'id': 's002',
-        'shopName': 'ร้านส้มตำนางฟ้า',
-        'category': 'อาหารอีสาน',
-        'marketName': 'ตลาดนัดรถไฟ',
-        'distance': '4.2 กม.',
-        'isOpen': true,
-        'image': _img4,
-        'tags': ['อาหาร', 'เผ็ด'],
-      },
-    ];
-  }
-
-  // 🔌 TODO: POST/DELETE $baseUrl/favorites/$shopId
-  static Future<bool> toggleFavorite(
-      String shopId, bool isFavorite, String token) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    return !isFavorite;
-  }
-}
 
 // ══════════════════════════════════════════════════════════
 // HomePage
@@ -173,7 +22,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int currentIndex = 2;
   String? _userRole;
-  String? _userToken;
+  int? _userId;
   bool _isLoading = true;
 
   List<Map<String, dynamic>> _recommendedShops = [];
@@ -189,49 +38,127 @@ class _HomePageState extends State<HomePage> {
   Future<void> _initPage() async {
     final prefs = await SharedPreferences.getInstance();
     _userRole = prefs.getString('role');
-    _userToken = prefs.getString('token');
+    _userId = int.tryParse(prefs.getString('userId') ?? '');
 
-    await Future.wait([
-      _loadMarkets(),
-      _userRole != null && _userToken != null
-          ? _loadUserFavorites()
-          : _loadRecommendedShops(),
-    ]);
+    final futures = [_loadMarkets(), _loadRecommendedShops()];
+    if (_userRole != null && _userId != null) {
+      futures.add(_loadUserFavorites());
+    }
+    await Future.wait(futures);
 
     if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _loadMarkets() async {
-    final markets = await HomeApiService.getRecommendedMarkets();
+    final result = await ApiService.getMarkets();
+    if (!result['success']) {
+      if (mounted) setState(() => _markets = []);
+      return;
+    }
+    final raw = result['data'] as List<dynamic>;
+    final markets = raw.map((e) {
+      final m = e as Map<String, dynamic>;
+      final openTime = m['open_time'] ?? '08:00';
+      final closeTime = m['close_time'] ?? '20:00';
+      return {
+        'id': m['id'],
+        'name': m['name'] ?? '',
+        'location': m['location'] ?? '',
+        'openTime': '$openTime - $closeTime',
+        'isOpen': true,
+        'totalStalls': m['total_stalls'] ?? 0,
+        'availableStalls': m['available_stalls'] ?? 0,
+        'tags': <String>[],
+        'isFavorite': false,
+        'image': m['image_url'],
+        'eventCount': 0,
+        'rating': m['rating'] ?? 4.0,
+      };
+    }).toList();
     if (mounted) setState(() => _markets = markets);
   }
 
   Future<void> _loadRecommendedShops() async {
-    final shops = await HomeApiService.getRecommendedShops();
+    final result = await ApiService.getSellers();
+    if (!result['success']) {
+      if (mounted) setState(() => _recommendedShops = []);
+      return;
+    }
+    final raw = result['data'] as List<dynamic>;
+    final shops = raw.map((e) {
+      final s = e as Map<String, dynamic>;
+      return {
+        'id': s['id'],
+        'shopName': s['shop_name'] ?? s['name'] ?? '-',
+        'category': 'ร้านค้า',
+        'marketName': s['market_name'] ?? '-',
+        'isOpen': s['is_open'] == 1,
+        'image': s['image_url'],
+        'isFavorite': false,
+        'tags': <String>[],
+      };
+    }).toList();
     if (mounted) setState(() => _recommendedShops = shops);
   }
 
   Future<void> _loadUserFavorites() async {
-    final favs = await HomeApiService.getUserFavorites(_userToken!);
-    if (mounted) setState(() => _userFavorites = favs);
+    final result = await ApiService.getFavorites(_userId!);
+    if (!result['success']) {
+      if (mounted) setState(() => _userFavorites = []);
+      return;
+    }
+    final raw = result['data'] as List<dynamic>;
+    final favs = raw.map((e) {
+      final s = e as Map<String, dynamic>;
+      return {
+        'id': s['seller_id'],
+        'shopName': s['shop_name'] ?? s['name'] ?? '-',
+        'category': 'ร้านค้า',
+        'marketName': s['market_name'] ?? '-',
+        'isOpen': s['is_open'] == 1,
+        'image': s['image_url'],
+        'isFavorite': true,
+        'tags': <String>[],
+      };
+    }).toList();
+    if (mounted) {
+      setState(() {
+        _userFavorites = favs;
+        // sync heart state in _recommendedShops
+        final favIds = favs.map((f) => f['id']).toSet();
+        for (final s in _recommendedShops) {
+          s['isFavorite'] = favIds.contains(s['id']);
+        }
+      });
+    }
   }
 
   Future<void> _toggleFavorite(Map<String, dynamic> shop) async {
-    if (_userRole == null) {
+    if (_userRole == null || _userId == null) {
       _showLoginRequiredDialog();
       return;
     }
-    final newState = await HomeApiService.toggleFavorite(
-      shop['id'],
-      shop['isFavorite'] ?? false,
-      _userToken ?? '',
-    );
+    final sellerId = int.tryParse(shop['id']?.toString() ?? '') ?? 0;
+    if (sellerId == 0) return;
+
+    final isFav = shop['isFavorite'] == true;
+    if (isFav) {
+      await ApiService.removeFavorite(userId: _userId!, sellerId: sellerId);
+    } else {
+      await ApiService.addFavorite(userId: _userId!, sellerId: sellerId);
+    }
     setState(() {
-      shop['isFavorite'] = newState;
-      if (newState) {
-        _userFavorites.add(shop);
+      shop['isFavorite'] = !isFav;
+      if (!isFav) {
+        if (!_userFavorites.any((s) => s['id'] == shop['id'])) {
+          _userFavorites.add(Map.from(shop));
+        }
       } else {
         _userFavorites.removeWhere((s) => s['id'] == shop['id']);
+      }
+      // sync heart state in _recommendedShops list
+      for (final s in _recommendedShops) {
+        if (s['id'] == shop['id']) s['isFavorite'] = !isFav;
       }
     });
   }
@@ -510,9 +437,13 @@ class _HomePageState extends State<HomePage> {
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                         children: [
-                          _userRole != null
-                              ? _buildUserFavoriteSection()
-                              : _buildRecommendedShopsSection(),
+                          // ถ้า login แล้วและมีถูกใจ → แสดง favorites section
+                          if (_userRole != null && _userFavorites.isNotEmpty) ...[
+                            _buildUserFavoriteSection(),
+                            const SizedBox(height: 20),
+                          ],
+                          // แสดงร้านแนะนำเสมอ (guest + logged-in)
+                          _buildRecommendedShopsSection(),
                           const SizedBox(height: 20),
                           _buildRecommendedMarketsSection(),
                         ],
@@ -561,59 +492,61 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-            GestureDetector(
-              onTap: () => Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const SelectRolePage()),
-              ),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8CBC63).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: const Color(0xFF8CBC63).withOpacity(0.4)),
+            if (_userRole == null)
+              GestureDetector(
+                onTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SelectRolePage()),
                 ),
-                child: Text(
-                  '+ ลงทะเบียน',
-                  style: GoogleFonts.kanit(
-                    fontSize: 12,
-                    color: const Color(0xFF8CBC63),
-                    fontWeight: FontWeight.w600,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8CBC63).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: const Color(0xFF8CBC63).withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    '+ ลงทะเบียน',
+                    style: GoogleFonts.kanit(
+                      fontSize: 12,
+                      color: const Color(0xFF8CBC63),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0F9EB),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF8CBC63).withOpacity(0.3)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline_rounded,
-                  color: Color(0xFF8CBC63), size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'ลงทะเบียนเพื่อบันทึกร้านที่ถูกใจและดูได้ทุกครั้ง',
-                  style: GoogleFonts.kanit(
-                    fontSize: 12,
-                    color: const Color(0xFF374151),
+        if (_userRole == null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F9EB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF8CBC63).withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    color: Color(0xFF8CBC63), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'ลงทะเบียนเพื่อบันทึกร้านที่ถูกใจและดูได้ทุกครั้ง',
+                    style: GoogleFonts.kanit(
+                      fontSize: 12,
+                      color: const Color(0xFF374151),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         SizedBox(
           height: 165,
           child: ListView.separated(
@@ -1159,13 +1092,15 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
+                      if ((market['location'] ?? '').toString().isNotEmpty ||
+                          (market['distance'] ?? '').toString().isNotEmpty)
+                        Text(
+                          '📍 ${(market['distance'] ?? '').toString().isNotEmpty ? market['distance'] : market['location']}',
+                          style:
+                              GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
+                        ),
                       Text(
-                        '📍 ${market['distance']}',
-                        style:
-                            GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
-                      ),
-                      Text(
-                        '🕐 ${market['openTime']}',
+                        '🕐 ${market['openTime'] ?? ''}',
                         style:
                             GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
                       ),
@@ -1173,7 +1108,7 @@ class _HomePageState extends State<HomePage> {
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
-                        children: (market['tags'] as List<String>)
+                        children: ((market['tags'] as List?)?.cast<String>() ?? <String>[])
                             .take(3)
                             .map((tag) => _buildTag(tag))
                             .toList(),

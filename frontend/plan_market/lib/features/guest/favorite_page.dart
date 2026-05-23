@@ -1,145 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plan_market/features/guest/shop_list_page.dart';
+import 'package:plan_market/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_page.dart';
 import 'market_detail_page.dart';
 import 'market_list_page.dart';
 import 'profile_page.dart';
 import '../auth/select_role_page.dart';
-
-// ══════════════════════════════════════════════════════════
-// 🔌 API Service - พอ Backend พร้อมแก้แค่ไฟล์นี้
-// ══════════════════════════════════════════════════════════
-class FavoriteApiService {
-  static const String baseUrl = 'https://api.planmarket.com/v1';
-
-  static const _img1 =
-      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400';
-  static const _img2 =
-      'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=400';
-  static const _img3 =
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400';
-  static const _img4 =
-      'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=400';
-  static const _img5 =
-      'https://images.unsplash.com/photo-1526367790999-0150786686a2?w=400';
-
-  // ── ดึงร้านที่ถูกใจ ───────────────────────────────────
-  // 🔌 TODO: GET $baseUrl/favorites
-  //          Header: Authorization: Bearer <token>
-  static Future<List<Map<String, dynamic>>> getFavorites(String token) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return [
-      {
-        // ── ข้อมูลพื้นฐานร้าน (ดึงจากตอนร้านลงทะเบียน) ──
-        'id': 's001',
-        'shopName': 'โกโก้ในตำนาน',
-        'category': 'เครื่องดื่ม',
-        'image': _img1, // รูปจากตอนร้านลงทะเบียน
-        'isOpen': true,
-        'status': 'เปิด',
-        // ── เวลาและวันเปิด ─────────────────────────────
-        'openDays': 'ศุกร์ - อาทิตย์',
-        'openTime': '18:00 - 23:00 น.',
-        // ── ตลาดที่ไปเปิด ──────────────────────────────
-        'marketName': 'ตลาดจตุจักร',
-        'distance': '1.2 กม.',
-        // ── ระยะเวลาที่จะเปิดที่นี่ ────────────────────
-        'rentalPeriod': '3 เดือน',
-        'rentalStart': '1 ม.ค. 2568',
-        'rentalEnd': '31 มี.ค. 2568',
-        // ── เมนู/สินค้า ────────────────────────────────
-        'menu': ['โกโก้เย็น', 'ชานม', 'ชาเขียว', 'น้ำผลไม้'],
-        // ── ตารางออกร้าน (ดึงจากข้อมูลร้านลงทะเบียน) ──
-        'schedule': [
-          {
-            'marketName': 'ตลาดจตุจักร',
-            'day': 'ศุกร์ - อาทิตย์',
-            'time': '18:00 - 23:00',
-            'distance': '1.2 กม.',
-          },
-          {
-            'marketName': 'ตลาดนัดรถไฟ',
-            'day': 'เสาร์',
-            'time': '17:00 - 22:00',
-            'distance': '4.2 กม.',
-          },
-        ],
-        'tags': ['เครื่องดื่ม', 'ของหวาน'],
-        'isFavorite': true,
-      },
-      {
-        'id': 's002',
-        'shopName': 'ร้านมาลีผัดไทย',
-        'category': 'อาหารไทย',
-        'image': _img3,
-        'isOpen': true,
-        'status': 'เปิด',
-        'openDays': 'เสาร์ - อาทิตย์',
-        'openTime': '17:00 - 22:00 น.',
-        'marketName': 'ตลาดนัดรถไฟ',
-        'distance': '4.2 กม.',
-        'rentalPeriod': '6 เดือน',
-        'rentalStart': '1 ธ.ค. 2567',
-        'rentalEnd': '31 พ.ค. 2568',
-        'menu': ['ผัดไทย', 'ผัดซีอิ๊ว', 'ราดหน้า', 'ผัดคะน้า'],
-        'schedule': [
-          {
-            'marketName': 'ตลาดนัดรถไฟ',
-            'day': 'เสาร์ - อาทิตย์',
-            'time': '17:00 - 22:00',
-            'distance': '4.2 กม.',
-          },
-        ],
-        'tags': ['อาหาร', 'ของสด'],
-        'isFavorite': true,
-      },
-      {
-        'id': 's003',
-        'shopName': 'ร้านแฟชั่นเกาหลี',
-        'category': 'เสื้อผ้า',
-        'image': _img4,
-        'isOpen': false,
-        'status': 'ปิด',
-        'openDays': 'ทุกวัน',
-        'openTime': '16:00 - 22:00 น.',
-        'marketName': 'ตลาดเซฟวันโก',
-        'distance': '7.2 กม.',
-        'rentalPeriod': '1 เดือน',
-        'rentalStart': '15 ม.ค. 2568',
-        'rentalEnd': '14 ก.พ. 2568',
-        'menu': ['เสื้อผ้าเกาหลี', 'กระเป๋า', 'เครื่องประดับ'],
-        'schedule': [
-          {
-            'marketName': 'ตลาดเซฟวันโก',
-            'day': 'ทุกวัน',
-            'time': '16:00 - 22:00',
-            'distance': '7.2 กม.',
-          },
-          {
-            'marketName': 'ตลาดสวนลุม',
-            'day': 'เสาร์ - อาทิตย์',
-            'time': '17:00 - 23:00',
-            'distance': '5.1 กม.',
-          },
-        ],
-        'tags': ['แฟชั่น', 'เสื้อผ้า'],
-        'isFavorite': true,
-      },
-    ];
-  }
-
-  // ── Toggle ถูกใจ ──────────────────────────────────────
-  // 🔌 TODO:
-  //   POST   $baseUrl/favorites/$shopId  → เพิ่ม
-  //   DELETE $baseUrl/favorites/$shopId  → ลบ
-  static Future<bool> toggleFavorite(
-      String shopId, bool isFavorite, String token) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    return !isFavorite;
-  }
-}
 
 // ══════════════════════════════════════════════════════════
 // FavoritePage
@@ -154,7 +22,7 @@ class FavoritePage extends StatefulWidget {
 class _FavoritePageState extends State<FavoritePage> {
   int currentIndex = 0;
   String? _userRole;
-  String? _userToken;
+  int? _userId;
   bool _isLoading = true;
   List<Map<String, dynamic>> _favorites = [];
 
@@ -167,9 +35,9 @@ class _FavoritePageState extends State<FavoritePage> {
   Future<void> _initPage() async {
     final prefs = await SharedPreferences.getInstance();
     _userRole = prefs.getString('role');
-    _userToken = prefs.getString('token');
+    _userId = int.tryParse(prefs.getString('userId') ?? '');
 
-    if (_userRole != null && _userToken != null) {
+    if (_userRole != null && _userId != null) {
       await _loadFavorites();
     }
 
@@ -178,38 +46,58 @@ class _FavoritePageState extends State<FavoritePage> {
     // Guest → popup แนะนำ
     if (_userRole == null && mounted) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        _showRegisterSuggestionDialog();
+        if (mounted) _showRegisterSuggestionDialog();
       });
     }
   }
 
   Future<void> _loadFavorites() async {
-    final data = await FavoriteApiService.getFavorites(_userToken ?? '');
-    if (mounted) setState(() => _favorites = data);
+    final result = await ApiService.getFavorites(_userId!);
+    if (!result['success']) {
+      if (mounted) setState(() => _favorites = []);
+      return;
+    }
+    final raw = result['data'] as List<dynamic>;
+    final favs = raw.map((e) {
+      final s = e as Map<String, dynamic>;
+      return {
+        'id': s['seller_id'],
+        'shopName': s['shop_name'] ?? s['name'] ?? '-',
+        'category': 'ร้านค้า',
+        'image': s['image_url'],
+        'isOpen': s['is_open'] == 1,
+        'status': s['is_open'] == 1 ? 'เปิด' : 'ปิด',
+        'openDays': '-',
+        'openTime': '-',
+        'marketName': s['market_name'] ?? '-',
+        'distance': '-',
+        'isFavorite': true,
+        'tags': <String>[],
+        'menu': <String>[],
+        'schedule': <Map<String, dynamic>>[],
+      };
+    }).toList();
+    if (mounted) setState(() => _favorites = favs);
   }
 
-  // ✅ Toggle ถูกใจ
+  // ✅ Toggle ถูกใจ (ในหน้านี้จะเป็นการ "ลบ" เสมอ)
   Future<void> _toggleFavorite(Map<String, dynamic> shop) async {
-    final newState = await FavoriteApiService.toggleFavorite(
-      shop['id'],
-      shop['isFavorite'] ?? true,
-      _userToken ?? '',
-    );
+    final sellerId = int.tryParse(shop['id']?.toString() ?? '') ?? 0;
+    if (sellerId == 0 || _userId == null) return;
+
+    await ApiService.removeFavorite(userId: _userId!, sellerId: sellerId);
     setState(() {
-      shop['isFavorite'] = newState;
-      if (!newState) {
-        _favorites.removeWhere((s) => s['id'] == shop['id']);
-      }
+      _favorites.removeWhere((s) => s['id'] == shop['id']);
     });
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            newState ? 'เพิ่มในรายการถูกใจแล้ว' : 'นำออกจากรายการถูกใจแล้ว',
+            'นำออกจากรายการถูกใจแล้ว',
             style: GoogleFonts.kanit(),
           ),
-          backgroundColor: newState ? const Color(0xFF8CBC63) : Colors.grey,
+          backgroundColor: Colors.grey,
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           shape:
@@ -704,7 +592,7 @@ class _FavoritePageState extends State<FavoritePage> {
                             child: Wrap(
                               spacing: 8,
                               runSpacing: 8,
-                              children: (shop['menu'] as List<String>).map((m) {
+                              children: ((shop['menu'] as List?)?.cast<String>() ?? <String>[]).map((m) {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 6),
@@ -1428,7 +1316,7 @@ class _FavoritePageState extends State<FavoritePage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 child: Row(
-                  children: (shop['tags'] as List<String>)
+                  children: ((shop['tags'] as List?)?.cast<String>() ?? <String>[])
                       .take(3)
                       .map((tag) => Padding(
                             padding: const EdgeInsets.only(right: 8),

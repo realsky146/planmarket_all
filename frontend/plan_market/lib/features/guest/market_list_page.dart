@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plan_market/features/auth/select_role_page.dart';
 import 'package:plan_market/features/guest/shop_list_page.dart';
+import 'package:plan_market/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_page.dart';
 import 'favorite_page.dart';
@@ -20,73 +21,49 @@ class _MarketListPageState extends State<MarketListPage> {
   String? _userRole;
   bool _isLoading = true;
 
-  final List<Map<String, dynamic>> _markets = [
-    {
-      'id': 'm001',
-      'name': 'ตลาดจตุจักร (โซนกลางคืน)',
-      'distance': '1.2 กม.',
-      'location': 'จตุจักร กรุงเทพฯ',
-      'openTime': '17:00 - 23:00',
-      'isOpen': true,
-      'rating': 4.8,
-      'totalStalls': 120,
-      'availableStalls': 45,
-      'tags': ['อาหาร', 'แฟชั่น', 'มือสอง'],
-      'isFavorite': false,
-      'image':
-          'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400',
-    },
-    {
-      'id': 'm002',
-      'name': 'ตลาดนัดรถไฟ',
-      'distance': '4.2 กม.',
-      'location': 'รามอินทรา กรุงเทพฯ',
-      'openTime': '18:00 - 23:00',
-      'isOpen': true,
-      'rating': 4.5,
-      'totalStalls': 80,
-      'availableStalls': 20,
-      'tags': ['อาหาร', 'ของสด'],
-      'isFavorite': true,
-      'image':
-          'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=400',
-    },
-    {
-      'id': 'm003',
-      'name': 'ตลาดนัดสวนลุม',
-      'distance': '6.5 กม.',
-      'location': 'พระราม 4 กรุงเทพฯ',
-      'openTime': '17:00 - 22:00',
-      'isOpen': false,
-      'rating': 4.3,
-      'totalStalls': 60,
-      'availableStalls': 0,
-      'tags': ['ของสด', 'อาหาร'],
-      'isFavorite': false,
-      'image':
-          'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400',
-    },
-  ];
+  List<Map<String, dynamic>> _markets = [];
 
   @override
   void initState() {
     super.initState();
-    _loadUserRole();
+    _initPage();
   }
 
-  // ✅ โหลด role จาก SharedPreferences
-  Future<void> _loadUserRole() async {
+  Future<void> _initPage() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userRole = prefs.getString('role');
-      _isLoading = false;
-    });
+    _userRole = prefs.getString('role');
+    await _loadMarkets();
+    if (mounted) setState(() => _isLoading = false);
     // ✅ ถ้าไม่มี session → แสดง popup แนะนำลงทะเบียน
     if (_userRole == null && mounted) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        _showRegisterSuggestionDialog();
+        if (mounted) _showRegisterSuggestionDialog();
       });
     }
+  }
+
+  Future<void> _loadMarkets() async {
+    final result = await ApiService.getMarkets();
+    if (!result['success']) return;
+    final raw = result['data'] as List<dynamic>;
+    final markets = raw.map((e) {
+      final m = e as Map<String, dynamic>;
+      final openTime = m['open_time'] ?? '08:00';
+      final closeTime = m['close_time'] ?? '20:00';
+      return {
+        'id': m['id'],
+        'name': m['name'] ?? '',
+        'location': m['location'] ?? '',
+        'openTime': '$openTime - $closeTime',
+        'isOpen': true,
+        'rating': (m['rating'] ?? 4.0).toDouble(),
+        'totalStalls': m['total_stalls'] ?? 0,
+        'availableStalls': m['available_stalls'] ?? 0,
+        'isFavorite': false,
+        'image': m['image_url'],
+      };
+    }).toList();
+    if (mounted) setState(() => _markets = markets);
   }
 
   // ══════════════════════════════════════════════════════════
@@ -707,7 +684,7 @@ class _MarketListPageState extends State<MarketListPage> {
                       ],
                     ),
                     Text(
-                      '📍 ${market['location']} (${market['distance']})',
+                      '📍 ${(market['location'] ?? '').toString().isNotEmpty ? market['location'] : '-'}',
                       style:
                           GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
                     ),

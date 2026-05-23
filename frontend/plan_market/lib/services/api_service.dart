@@ -94,6 +94,20 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> getOwnerMarkets(int ownerId) async {
+    try {
+      final res = await _client
+          .get(Uri.parse('$baseUrl/markets/owner/$ownerId'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return {'success': true, 'data': jsonDecode(res.body) as List<dynamic>};
+      }
+      return {'success': false, 'message': 'โหลดตลาดไม่สำเร็จ'};
+    } catch (e) {
+      return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> getMarketOwnerBookings(int ownerId) async {
     try {
       final res = await _client
@@ -143,6 +157,118 @@ class ApiService {
         return {'success': true, 'data': jsonDecode(res.body) as List<dynamic>};
       }
       return {'success': false, 'message': 'โหลดการจองไม่สำเร็จ'};
+    } catch (e) {
+      return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
+    }
+  }
+
+  // Users (Admin)
+  static Future<Map<String, dynamic>> getUsers() async {
+    try {
+      final res = await _client
+          .get(Uri.parse('$baseUrl/users'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return {'success': true, 'data': jsonDecode(res.body) as List<dynamic>};
+      }
+      return {'success': false, 'message': 'โหลด users ไม่สำเร็จ'};
+    } catch (e) {
+      return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> approveUser(int userId) async {
+    try {
+      final res = await _client
+          .patch(Uri.parse('$baseUrl/users/$userId/approve'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return res.statusCode == 200
+          ? {'success': true, ...body}
+          : {'success': false, 'message': body['message'] ?? 'อนุมัติไม่สำเร็จ'};
+    } catch (e) {
+      return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> rejectUser(int userId) async {
+    try {
+      final res = await _client
+          .patch(Uri.parse('$baseUrl/users/$userId/reject'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return res.statusCode == 200
+          ? {'success': true, ...body}
+          : {'success': false, 'message': body['message'] ?? 'ปฏิเสธไม่สำเร็จ'};
+    } catch (e) {
+      return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
+    }
+  }
+
+  // Sellers
+  static Future<Map<String, dynamic>> getSellers() async {
+    try {
+      final res = await _client
+          .get(Uri.parse('$baseUrl/users/sellers'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return {'success': true, 'data': jsonDecode(res.body) as List<dynamic>};
+      }
+      return {'success': false, 'message': 'โหลดร้านค้าไม่สำเร็จ'};
+    } catch (e) {
+      return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
+    }
+  }
+
+  // Favorites
+  static Future<Map<String, dynamic>> getFavorites(int userId) async {
+    try {
+      final res = await _client
+          .get(Uri.parse('$baseUrl/favorites/$userId'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return {'success': true, 'data': jsonDecode(res.body) as List<dynamic>};
+      }
+      return {'success': false, 'message': 'โหลดรายการถูกใจไม่สำเร็จ'};
+    } catch (e) {
+      return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> addFavorite({
+    required int userId,
+    required int sellerId,
+  }) async {
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('$baseUrl/favorites'),
+            headers: _headers,
+            body: jsonEncode({'user_id': userId, 'seller_id': sellerId}),
+          )
+          .timeout(const Duration(seconds: 10));
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode == 201) return {'success': true, ...body};
+      return {'success': false, 'message': body['message'] ?? 'เพิ่มไม่สำเร็จ'};
+    } catch (e) {
+      return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> removeFavorite({
+    required int userId,
+    required int sellerId,
+  }) async {
+    try {
+      final res = await _client
+          .delete(
+            Uri.parse('$baseUrl/favorites/$userId/$sellerId'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 10));
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (res.statusCode == 200) return {'success': true, ...body};
+      return {'success': false, 'message': body['message'] ?? 'ลบไม่สำเร็จ'};
     } catch (e) {
       return {'success': false, 'message': 'ไม่สามารถเชื่อมต่อ server ได้: $e'};
     }

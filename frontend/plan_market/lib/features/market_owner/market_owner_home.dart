@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/market_service.dart';
 import '../auth/select_role_page.dart';
@@ -376,6 +377,8 @@ class _DashboardTab extends StatefulWidget {
 
 class _DashboardTabState extends State<_DashboardTab> {
   List<Map<String, dynamic>> _apiBookings = [];
+  List<StallModel> _stalls = [];
+  String _marketName = 'ตลาดของฉัน';
 
   @override
   void initState() {
@@ -386,9 +389,45 @@ class _DashboardTabState extends State<_DashboardTab> {
   Future<void> _loadDashboardData() async {
     final prefs = await SharedPreferences.getInstance();
     final ownerId = prefs.getString('userId') ?? '0';
-    final data = await MarketService().getMarketOwnerBookings(ownerId);
+    final ownerIdInt = int.tryParse(ownerId) ?? 0;
+
+    final bookings = await MarketService().getMarketOwnerBookings(ownerId);
+
+    List<StallModel> stalls = [];
+    String marketName = 'ตลาดของฉัน';
+
+    final marketsResult = await ApiService.getOwnerMarkets(ownerIdInt);
+    if (marketsResult['success'] == true) {
+      final markets = marketsResult['data'] as List<dynamic>;
+      if (markets.isNotEmpty) {
+        final first = markets[0] as Map<String, dynamic>;
+        marketName = first['name'] ?? 'ตลาดของฉัน';
+        final marketId = first['id'] as int;
+
+        final stallsResult = await ApiService.getMarketStalls(marketId);
+        if (stallsResult['success'] == true) {
+          final raw = stallsResult['data'] as List<dynamic>;
+          stalls = raw.map((s) {
+            final sn = s['stall_number'] as String;
+            return StallModel(
+              id: s['id'].toString(),
+              zone: 'โซน ${sn.isNotEmpty ? sn[0] : '?'}',
+              stallNumber: sn,
+              isBooked: (s['status'] ?? 'available') != 'available',
+              shopName: s['shop_name'] ?? '',
+              pricePerDay: 200,
+            );
+          }).toList();
+        }
+      }
+    }
+
     if (!mounted) return;
-    setState(() => _apiBookings = data);
+    setState(() {
+      _apiBookings = bookings;
+      _stalls = stalls;
+      _marketName = marketName;
+    });
   }
 
   Widget _statCard(String label, String value, Color bgColor,
@@ -435,7 +474,7 @@ class _DashboardTabState extends State<_DashboardTab> {
   }
 
   void _showAllStallsPopup(BuildContext context) {
-    final zones = ['โซน A', 'โซน B', 'โซน C', 'โซน D'];
+    final zones = _stalls.map((s) => s.zone).toSet().toList()..sort();
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -481,7 +520,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'รวม ${mockStalls.length} แผง',
+                        'รวม ${_stalls.length} แผง',
                         style: GoogleFonts.kanit(
                             fontSize: 11, color: Colors.white),
                       ),
@@ -514,7 +553,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                   padding: const EdgeInsets.all(12),
                   children: zones.map((zone) {
                     final zoneStalls =
-                        mockStalls.where((s) => s.zone == zone).toList();
+                        _stalls.where((s) => s.zone == zone).toList();
                     final bookedCount =
                         zoneStalls.where((s) => s.isBooked).length;
                     final freeCount = zoneStalls.length - bookedCount;
@@ -702,8 +741,8 @@ class _DashboardTabState extends State<_DashboardTab> {
 
   @override
   Widget build(BuildContext context) {
-    final totalStalls = mockStalls.length;
-    final freeStalls = mockStalls.where((s) => !s.isBooked).length;
+    final totalStalls = _stalls.length;
+    final freeStalls = _stalls.where((s) => !s.isBooked).length;
     final pendingBookings = _apiBookings
         .where((b) => (b['status'] ?? '') == 'pending')
         .length;
@@ -796,7 +835,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                   Text('สวัสดี เจ้าของตลาด',
                       style: GoogleFonts.kanit(
                           color: Colors.white70, fontSize: 13)),
-                  Text('ตลาดจตุจักร',
+                  Text(_marketName,
                       style: GoogleFonts.kanit(
                           color: Colors.white,
                           fontSize: 20,
@@ -1193,14 +1232,72 @@ class _StallLayoutTab extends StatefulWidget {
 }
 
 class _StallLayoutTabState extends State<_StallLayoutTab> {
-  String _selectedZone = 'โซน A';
-  final _zones = ['โซน A', 'โซน B', 'โซน C', 'โซน D'];
+  String? _selectedZone;
+  List<String> _zones = [];
+  List<StallModel> _stalls = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStalls();
+  }
+
+  Future<void> _loadStalls() async {
+    setState(() => _isLoading = true);
+    final prefs = await SharedPreferences.getInstance();
+    final ownerId = prefs.getString('userId') ?? '0';
+    final ownerIdInt = int.tryParse(ownerId) ?? 0;
+
+    final marketsResult = await ApiService.getOwnerMarkets(ownerIdInt);
+    if (!mounted) return;
+
+    if (marketsResult['success'] == true) {
+      final markets = marketsResult['data'] as List<dynamic>;
+      if (markets.isNotEmpty) {
+        final marketId = markets[0]['id'] as int;
+        final stallsResult = await ApiService.getMarketStalls(marketId);
+        if (!mounted) return;
+
+        if (stallsResult['success'] == true) {
+          final raw = stallsResult['data'] as List<dynamic>;
+          final stalls = raw.map((s) {
+            final sn = s['stall_number'] as String;
+            return StallModel(
+              id: s['id'].toString(),
+              zone: 'โซน ${sn.isNotEmpty ? sn[0] : '?'}',
+              stallNumber: sn,
+              isBooked: (s['status'] ?? 'available') != 'available',
+              shopName: s['shop_name'] ?? '',
+              pricePerDay: 200,
+            );
+          }).toList();
+
+          final zones = stalls.map((s) => s.zone).toSet().toList()..sort();
+          setState(() {
+            _stalls = stalls;
+            _zones = zones;
+            _selectedZone = zones.isNotEmpty ? zones[0] : null;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+    }
+    setState(() => _isLoading = false);
+  }
 
   List<StallModel> get _currentStalls =>
-      mockStalls.where((s) => s.zone == _selectedZone).toList();
+      _stalls.where((s) => s.zone == (_selectedZone ?? '')).toList();
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFEEEEEE),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF8CBC63))),
+      );
+    }
     final stalls = _currentStalls;
     return Scaffold(
       backgroundColor: const Color(0xFFEEEEEE),
@@ -1230,7 +1327,12 @@ class _StallLayoutTabState extends State<_StallLayoutTab> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              children: _zones.map((z) {
+              children: _zones.isEmpty
+                  ? [Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('ไม่มีแผง', style: GoogleFonts.kanit(color: Colors.grey)),
+                    )]
+                  : _zones.map((z) {
                 final selected = z == _selectedZone;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),

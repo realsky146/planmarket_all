@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/signup_vendor_page.dart';
+import '../../services/api_service.dart';
 
 class MarketDetailPage extends StatefulWidget {
   final Map<String, dynamic> market;
@@ -14,45 +15,42 @@ class MarketDetailPage extends StatefulWidget {
 
 class _MarketDetailPageState extends State<MarketDetailPage> {
   String? _selectedStallId;
-  String? _userRole; // ✅ เก็บ role ของผู้ใช้
-
-  // ── Mock ผังล็อค โซน A ────────────────────────────────────
-  final List<Map<String, dynamic>> _stallsA = List.generate(
-    20,
-    (i) => {
-      'id': 'A${(i + 1).toString().padLeft(2, '0')}',
-      'status': i % 5 == 0
-          ? 'booked'
-          : i % 4 == 0
-              ? 'pending'
-              : 'available',
-    },
-  );
-
-  // ── Mock ผังล็อค โซน B ────────────────────────────────────
-  final List<Map<String, dynamic>> _stallsB = List.generate(
-    10,
-    (i) => {
-      'id': 'B${(i + 1).toString().padLeft(2, '0')}',
-      'status': i % 3 == 0
-          ? 'booked'
-          : i % 2 == 0
-              ? 'pending'
-              : 'available',
-    },
-  );
+  String? _userRole;
+  Map<String, List<Map<String, dynamic>>> _stallsByZone = {};
+  bool _isLoadingStalls = true;
 
   @override
   void initState() {
     super.initState();
-    _loadUserRole(); // ✅ โหลด role ตอนเปิดหน้า
+    _loadData();
   }
 
-  // ✅ โหลด role จาก session
-  Future<void> _loadUserRole() async {
+  Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('role');
+
+    final marketId = int.tryParse(widget.market['id']?.toString() ?? '0') ?? 0;
+    final result = await ApiService.getMarketStalls(marketId);
+
+    if (!mounted) return;
+
+    final Map<String, List<Map<String, dynamic>>> byZone = {};
+    if (result['success'] == true) {
+      final raw = result['data'] as List<dynamic>;
+      for (final s in raw) {
+        final sn = s['stall_number'] as String;
+        final zone = sn.isNotEmpty ? 'โซน ${sn[0]}' : 'โซน ?';
+        byZone.putIfAbsent(zone, () => []).add({
+          'id': sn,
+          'status': s['status'] ?? 'available',
+        });
+      }
+    }
+
     setState(() {
-      _userRole = prefs.getString('role');
+      _userRole = role;
+      _stallsByZone = byZone;
+      _isLoadingStalls = false;
     });
   }
 
@@ -348,18 +346,34 @@ class _MarketDetailPageState extends State<MarketDetailPage> {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _buildZoneLabel('โซน A'),
-                      const SizedBox(height: 8),
-                      _buildStallGrid(_stallsA),
-                      const SizedBox(height: 16),
-                      _buildZoneLabel('โซน B'),
-                      const SizedBox(height: 8),
-                      _buildStallGrid(_stallsB),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
+                  child: _isLoadingStalls
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: CircularProgressIndicator(
+                                color: Color(0xFF8CBC63)),
+                          ),
+                        )
+                      : _stallsByZone.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32),
+                                child: Text('ยังไม่มีแผงในตลาดนี้',
+                                    style: GoogleFonts.kanit(
+                                        color: Colors.grey)),
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                ..._stallsByZone.entries.expand((e) => [
+                                      _buildZoneLabel(e.key),
+                                      const SizedBox(height: 8),
+                                      _buildStallGrid(e.value),
+                                      const SizedBox(height: 16),
+                                    ]),
+                                const SizedBox(height: 8),
+                              ],
+                            ),
                 ),
               ),
               _buildBookButton(),
