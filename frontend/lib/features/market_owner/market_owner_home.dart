@@ -1093,15 +1093,32 @@ class _DashboardTabState extends State<_DashboardTab> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
-                            onPressed: () {
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
                               Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(SnackBar(
-                                content: Text(
-                                    'ปฏิเสธคำขอของ ${booking.shopName}',
-                                    style: GoogleFonts.kanit()),
-                                backgroundColor: const Color(0xFFEF4444),
-                              ));
+                              final result = await MarketService()
+                                  .updateBookingStatus(booking.id, 'rejected');
+                              if (!mounted) return;
+                              if (result['success'] == true) {
+                                setState(() => _apiBookings.removeWhere(
+                                    (b) => b['id']?.toString() == booking.id));
+                                messenger.showSnackBar(SnackBar(
+                                  content: Text(
+                                      'ปฏิเสธคำขอของ ${booking.shopName}',
+                                      style: GoogleFonts.kanit()),
+                                  backgroundColor: const Color(0xFFEF4444),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10)),
+                                ));
+                              } else {
+                                messenger.showSnackBar(SnackBar(
+                                  content: Text(
+                                      result['message'] ?? 'เกิดข้อผิดพลาด',
+                                      style: GoogleFonts.kanit()),
+                                  backgroundColor: const Color(0xFFEF4444),
+                                ));
+                              }
                             },
                             child: Text('ปฏิเสธ',
                                 style: GoogleFonts.kanit(
@@ -1117,15 +1134,32 @@ class _DashboardTabState extends State<_DashboardTab> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
-                            onPressed: () {
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
                               Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(SnackBar(
-                                content: Text(
-                                    'อนุมัติคำขอของ ${booking.shopName} แล้ว',
-                                    style: GoogleFonts.kanit()),
-                                backgroundColor: const Color(0xFF8CBC63),
-                              ));
+                              final result = await MarketService()
+                                  .updateBookingStatus(booking.id, 'approved');
+                              if (!mounted) return;
+                              if (result['success'] == true) {
+                                setState(() => _apiBookings.removeWhere(
+                                    (b) => b['id']?.toString() == booking.id));
+                                messenger.showSnackBar(SnackBar(
+                                  content: Text(
+                                      'อนุมัติคำขอของ ${booking.shopName} แล้ว',
+                                      style: GoogleFonts.kanit()),
+                                  backgroundColor: const Color(0xFF8CBC63),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10)),
+                                ));
+                              } else {
+                                messenger.showSnackBar(SnackBar(
+                                  content: Text(
+                                      result['message'] ?? 'เกิดข้อผิดพลาด',
+                                      style: GoogleFonts.kanit()),
+                                  backgroundColor: const Color(0xFFEF4444),
+                                ));
+                              }
                             },
                             child: Text('อนุมัติ', style: GoogleFonts.kanit()),
                           ),
@@ -1540,7 +1574,22 @@ class _BookingTabState extends State<_BookingTab> {
     final result = await MarketService().updateBookingStatus(id, newStatus);
     if (!mounted) return;
     if (result['success'] == true) {
-      setState(() => _requests[index]['status'] = newStatus);
+      final shopName = _requests[index]['shop'] as String;
+      setState(() => _requests.removeAt(index));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          newStatus == 'approved'
+              ? 'อนุมัติ "$shopName" เรียบร้อยแล้ว'
+              : 'ปฏิเสธ "$shopName" เรียบร้อยแล้ว',
+          style: GoogleFonts.kanit(),
+        ),
+        backgroundColor: newStatus == 'approved'
+            ? const Color(0xFF8CBC63)
+            : const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(result['message'] ?? 'เกิดข้อผิดพลาด',

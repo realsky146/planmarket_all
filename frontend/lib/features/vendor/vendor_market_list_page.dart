@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plan_market/features/vendor/vendor_shop_info_page.dart';
 import 'vendor_home.dart';
 import 'favorite_vendor_page.dart';
 import 'profile_vendor_page.dart';
-import '../../services/api_service.dart'; // ⭐ เปลี่ยนมาใช้ ApiService โดยตรง
+import '../../services/api_service.dart';
+import '../../models/recommendation_models.dart';
 import 'stall_selection_page.dart';
 
 class VendorMarketListPage extends StatefulWidget {
@@ -22,18 +24,23 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
   bool _isLoading = true;
   final _filters = ['แนะนำ', 'ใกล้ฉัน', 'คนเยอะ', 'ราคาถูก', 'เปิดอยู่'];
   List<Map<String, dynamic>> _markets = [];
+  List<StallPreference> _savedPreferences = [];
 
   @override
   void initState() {
     super.initState();
-    _loadMarkets();
+    _loadMarketsAndCheckPrefs();
   }
 
-  // ⭐ แก้ไข _loadMarkets() ให้ดึงข้อมูลจาก API จริง
+  Future<void> _loadMarketsAndCheckPrefs() async {
+    await _loadMarkets();
+    await _checkPreferences();
+  }
+
+  // ⭐ โหลดข้อมูลตลาดจาก API
   Future<void> _loadMarkets() async {
     setState(() => _isLoading = true);
     try {
-      // ⭐ ใช้ ApiService.getMarkets() แทน VendorService
       final result = await ApiService.getMarkets();
       if (!mounted) return;
 
@@ -46,9 +53,8 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
 
       setState(() {
         _markets = raw.map((m) {
-          // ⭐ ดึงข้อมูลจาก API ให้ครบ
-          final totalStalls = m['total_stalls'] ?? 0;
-          final availableStalls = m['available_stalls'] ?? 1;
+          final totalStalls = (m['total_stalls'] as num?)?.toInt() ?? 0;
+          final availableStalls = (m['available_stalls'] as num?)?.toInt() ?? 0;
 
           return {
             'id': m['id']?.toString() ?? '',
@@ -61,12 +67,15 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
             'tags': <String>[],
             'stallsAvailable': availableStalls,
             'totalStalls': totalStalls,
-            'pricePerDay': m['price_per_day'] ?? 0,
+            'pricePerDay': (m['price_per_day'] as num?)?.toInt() ?? 0,
+            'hasParking': (m['has_parking'] as num?)?.toInt() == 1,
+            'hasAircon': (m['has_aircon'] as num?)?.toInt() == 1,
+            'openWeekend': (m['open_weekend'] as num?)?.toInt() == 1,
             'traffic': 'ปานกลาง',
-            'rating': double.tryParse(m['rating']?.toString() ?? '4.0') ?? 4.0,
+            'rating':
+                double.tryParse(m['rating']?.toString() ?? '4.0') ?? 4.0,
             'isFavorite': false,
             'reason': 'แนะนำสำหรับคุณ',
-            // ⭐ ดึงรูปภาพจาก API
             'image': m['image_url'] ?? '',
           };
         }).toList();
@@ -78,6 +87,240 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ── Preference handling ───────────────────────────────────────────
+
+  Future<void> _checkPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('vendor_preferences');
+    if (saved != null && saved.isNotEmpty) {
+      setState(() {
+        _savedPreferences = saved
+            .split(',')
+            .map((s) => int.tryParse(s.trim()))
+            .whereType<int>()
+            .where((i) => i < StallPreference.values.length)
+            .map((i) => StallPreference.values[i])
+            .toList();
+      });
+    } else if (saved == null) {
+      // First time — show dialog after a brief delay so markets render first
+      if (mounted) {
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) _showPreferencePickerDialog(isFirstTime: true);
+      }
+    }
+  }
+
+  Future<void> _savePreferences(List<StallPreference> prefs) async {
+    final spPrefs = await SharedPreferences.getInstance();
+    final value = prefs.map((p) => p.index.toString()).join(',');
+    await spPrefs.setString('vendor_preferences', value);
+    setState(() => _savedPreferences = prefs);
+  }
+
+  void _showPreferencePickerDialog({bool isFirstTime = false}) {
+    final temp = List<StallPreference>.from(_savedPreferences);
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isFirstTime,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 20, horizontal: 20),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF8CBC63),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.tune_rounded,
+                          color: Colors.white, size: 32),
+                      const SizedBox(height: 8),
+                      Text(
+                        isFirstTime
+                            ? 'คุณชอบตลาดแบบไหน?'
+                            : 'แก้ไขความต้องการ',
+                        style: GoogleFonts.kanit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'เลือกสิ่งที่คุณต้องการ\nเพื่อแนะนำตลาดที่เหมาะกับคุณ',
+                        style: GoogleFonts.kanit(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.85),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                // Preference chips
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: StallPreference.values.map((pref) {
+                      final selected = temp.contains(pref);
+                      return GestureDetector(
+                        onTap: () => setDialogState(() {
+                          if (selected) {
+                            temp.remove(pref);
+                          } else {
+                            temp.add(pref);
+                          }
+                        }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? pref.color.withOpacity(0.12)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: selected
+                                  ? pref.color
+                                  : Colors.grey.shade300,
+                              width: selected ? 2 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(pref.icon,
+                                  style: const TextStyle(fontSize: 16)),
+                              const SizedBox(width: 6),
+                              Text(
+                                pref.title,
+                                style: GoogleFonts.kanit(
+                                  fontSize: 13,
+                                  fontWeight: selected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: selected
+                                      ? pref.color
+                                      : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                // Buttons
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        height: 46,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8CBC63),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await _savePreferences(temp);
+                          },
+                          child: Text(
+                            'บันทึก',
+                            style: GoogleFonts.kanit(
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      if (isFirstTime) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await _savePreferences([]); // mark as seen
+                          },
+                          child: Text(
+                            'ข้ามไปก่อน',
+                            style: GoogleFonts.kanit(color: Colors.grey),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _preferenceScore(Map<String, dynamic> market) {
+    double score = 0;
+    final available   = (market['stallsAvailable'] as num?)?.toInt() ?? 0;
+    final rating      = (market['rating'] as num?)?.toDouble() ?? 4.0;
+    final price       = (market['pricePerDay'] as num?)?.toInt() ?? 0;
+    final hasParking  = market['hasParking'] as bool? ?? false;
+    final hasAircon   = market['hasAircon'] as bool? ?? false;
+    final openWeekend = market['openWeekend'] as bool? ?? false;
+
+    // คะแนนพื้นฐาน
+    score += available.toDouble();
+    score += rating * 5;
+
+    for (final pref in _savedPreferences) {
+      switch (pref) {
+        case StallPreference.cheapest:
+          // ยิ่งถูกยิ่งได้คะแนนสูง
+          score += price > 0 ? (200.0 / price) : 10;
+          break;
+        case StallPreference.highTraffic:
+          score += rating * 8;
+          break;
+        case StallPreference.parking:
+          score += hasParking ? 30 : 0;
+          break;
+        case StallPreference.aircon:
+          score += hasAircon ? 30 : 0;
+          break;
+        case StallPreference.weekend:
+          score += openWeekend ? 30 : 0;
+          break;
+        default:
+          // nearby / hasEvent / sameCat ยังไม่มีข้อมูลจาก API
+          score += 5;
+      }
+    }
+    return score;
   }
 
   // ── Filter ────────────────────────────────────────────
@@ -97,6 +340,12 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
     }
 
     switch (_selectedFilter) {
+      case 'แนะนำ':
+        if (_savedPreferences.isNotEmpty) {
+          list.sort(
+              (a, b) => _preferenceScore(b).compareTo(_preferenceScore(a)));
+        }
+        break;
       case 'ใกล้ฉัน':
         list.sort((a, b) {
           final da = double.tryParse(
@@ -116,7 +365,8 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
         break;
       case 'ราคาถูก':
         list.sort((a, b) =>
-            (a['pricePerDay'] as int).compareTo(b['pricePerDay'] as int));
+            ((a['pricePerDay'] as num?)?.toInt() ?? 0)
+                .compareTo((b['pricePerDay'] as num?)?.toInt() ?? 0));
         break;
       case 'เปิดอยู่':
         list = list.where((m) => m['isOpen'] == true).toList();
@@ -225,6 +475,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  // ── Filter tabs ──
                   SizedBox(
                     height: 40,
                     child: ListView.separated(
@@ -267,6 +518,77 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                       },
                     ),
                   ),
+                  // ── Saved preference chips ──
+                  if (_savedPreferences.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'ความต้องการ: ',
+                                    style: GoogleFonts.kanit(
+                                        fontSize: 11, color: Colors.grey),
+                                  ),
+                                  ..._savedPreferences.map((p) => Container(
+                                        margin:
+                                            const EdgeInsets.only(right: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: p.color.withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                              color:
+                                                  p.color.withOpacity(0.4)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(p.icon,
+                                                style: const TextStyle(
+                                                    fontSize: 11)),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              p.title,
+                                              style: GoogleFonts.kanit(
+                                                fontSize: 10,
+                                                color: p.color,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: _showPreferencePickerDialog,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: const Color(0xFFE5E7EB)),
+                              ),
+                              child: const Icon(Icons.tune_rounded,
+                                  size: 16, color: Color(0xFF6B7280)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Expanded(
                     child: _isLoading
@@ -277,15 +599,16 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                             ? Center(
                                 child: Text(
                                   'ไม่พบตลาดที่ค้นหา',
-                                  style: GoogleFonts.kanit(color: Colors.grey),
+                                  style:
+                                      GoogleFonts.kanit(color: Colors.grey),
                                 ),
                               )
                             : RefreshIndicator(
                                 color: const Color(0xFF8CBC63),
                                 onRefresh: _loadMarkets,
                                 child: ListView.separated(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                                  padding: const EdgeInsets.fromLTRB(
+                                      16, 4, 16, 100),
                                   itemCount: _filteredMarkets.length,
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(height: 12),
@@ -312,11 +635,11 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
   Widget _buildMarketCard(Map<String, dynamic> m) {
     final isOpen = m['isOpen'] as bool;
     final tags = (m['tags'] as List).cast<String>();
-    final available = m['stallsAvailable'] as int;
-    final total = m['totalStalls'] as int;
+    final available = (m['stallsAvailable'] as num?)?.toInt() ?? 0;
+    final total = (m['totalStalls'] as num?)?.toInt() ?? 0;
     final traffic = m['traffic'] as String;
     final isFavorite = m['isFavorite'] as bool;
-    final rating = m['rating'] as double;
+    final rating = (m['rating'] as num?)?.toDouble() ?? 4.0;
 
     Color trafficColor;
     switch (traffic) {
@@ -367,7 +690,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                                 return Container(
                                   width: 80,
                                   height: 80,
-                                  color: Colors.grey,
+                                  color: Colors.grey.shade100,
                                   child: const Center(
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
@@ -581,13 +904,13 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                   ),
                 ),
                 const Spacer(),
-                // ⭐ แก้ปุ่มจองให้ไปหน้า StallSelectionPage
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         available > 0 ? const Color(0xFF8CBC63) : Colors.grey,
-                    foregroundColor:
-                        available > 0 ? Colors.white : const Color(0xFF9CA3AF),
+                    foregroundColor: available > 0
+                        ? Colors.white
+                        : const Color(0xFF9CA3AF),
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 10),
@@ -595,7 +918,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  // ⭐ แก้ไขตรงนี้ - ไม่มี syntax error แล้ว
                   onPressed: available > 0
                       ? () => Navigator.push(
                             context,

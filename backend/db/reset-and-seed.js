@@ -41,6 +41,10 @@ db.serialize(() => {
       open_time TEXT DEFAULT '08:00',
       close_time TEXT DEFAULT '20:00',
       rating REAL DEFAULT 4.0,
+      price_per_day INTEGER DEFAULT 0,
+      has_parking INTEGER DEFAULT 0,
+      has_aircon INTEGER DEFAULT 0,
+      open_weekend INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (owner_id) REFERENCES users(id)
     )
@@ -103,11 +107,12 @@ db.serialize(() => {
     console.log("✅ Users inserted");
 
     // INSERT MARKETS
-    const marketStmt = db.prepare(`INSERT INTO markets (id, name, description, owner_id, location, open_time, close_time, rating) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-    marketStmt.run(1, "ตลาดนัดจตุจักร", "ตลาดนัดสุดสัปดาห์ที่ใหญ่ที่สุด", 30, "จตุจักร, กรุงเทพฯ", "09:00", "18:00", 4.8);
-    marketStmt.run(2, "ตลาดนัดรถไฟรัชดา", "ตลาดกลางคืนชื่อดัง", 30, "รัชดาภิเษก, กรุงเทพฯ", "17:00", "01:00", 4.5);
-    marketStmt.run(3, "ตลาดนัดหลังมอ", "ตลาดนัดราคาถูก", 31, "รามคำแหง, กรุงเทพฯ", "16:00", "22:00", 4.2);
-    marketStmt.run(4, "ตลาดนัดใหม่เอี่ยม", "ตลาดเปิดใหม่ รอการอนุมัติ", 32, "ลาดพร้าว, กรุงเทพฯ", "10:00", "20:00", 0);
+    // columns: id, name, description, owner_id, location, open_time, close_time, rating, price_per_day, has_parking, has_aircon, open_weekend
+    const marketStmt = db.prepare(`INSERT INTO markets (id, name, description, owner_id, location, open_time, close_time, rating, price_per_day, has_parking, has_aircon, open_weekend) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    marketStmt.run(1, "ตลาดนัดจตุจักร",   "ตลาดนัดสุดสัปดาห์ที่ใหญ่ที่สุด", 30, "จตุจักร, กรุงเทพฯ",    "09:00", "18:00", 4.8, 200, 1, 0, 1);
+    marketStmt.run(2, "ตลาดนัดรถไฟรัชดา", "ตลาดกลางคืนชื่อดัง",            30, "รัชดาภิเษก, กรุงเทพฯ", "17:00", "01:00", 4.5, 150, 0, 0, 1);
+    marketStmt.run(3, "ตลาดนัดหลังมอ",    "ตลาดนัดราคาถูก",                 31, "รามคำแหง, กรุงเทพฯ",   "16:00", "22:00", 4.2,  80, 1, 0, 0);
+    marketStmt.run(4, "ตลาดนัดใหม่เอี่ยม","ตลาดเปิดใหม่ มีแอร์และที่จอดรถ", 32, "ลาดพร้าว, กรุงเทพฯ",  "10:00", "20:00", 4.0, 120, 1, 1, 1);
     marketStmt.finalize();
     console.log("✅ Markets inserted");
 

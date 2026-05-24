@@ -4,6 +4,7 @@ export const getMarkets = (req, res) => {
   const sql = `
     SELECT m.id, m.name, m.description, m.owner_id, m.image_url,
            m.location, m.open_time, m.close_time, m.rating,
+           m.price_per_day, m.has_parking, m.has_aircon, m.open_weekend,
            COUNT(s.id) AS total_stalls,
            SUM(CASE WHEN s.status = 'available' THEN 1 ELSE 0 END) AS available_stalls
     FROM markets m
@@ -64,7 +65,7 @@ export const getMarketBookings = (req, res) => {
     JOIN stalls s ON b.stall_id = s.id
     JOIN markets m ON s.market_id = m.id
     JOIN users u ON b.seller_id = u.id
-    WHERE m.owner_id = ?
+    WHERE m.owner_id = ? AND b.status = 'pending'
     ORDER BY b.created_at DESC
   `;
 
@@ -78,15 +79,18 @@ export const getMarketBookings = (req, res) => {
 };
 
 export const createMarket = (req, res) => {
-  const { name, description, owner_id, image_url, location, open_time, close_time, rating } = req.body;
+  const { name, description, owner_id, image_url, location, open_time, close_time, rating,
+          price_per_day, has_parking, has_aircon, open_weekend } = req.body;
   if (!name || !owner_id) {
     return res.status(400).json({ message: "Missing required fields" });
   }
-  const sql = `INSERT INTO markets (name, description, owner_id, image_url, location, open_time, close_time, rating)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+  const sql = `INSERT INTO markets (name, description, owner_id, image_url, location, open_time, close_time, rating,
+                                    price_per_day, has_parking, has_aircon, open_weekend)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   db.run(sql, [
     name, description || null, owner_id, image_url || null,
-    location || '', open_time || '08:00', close_time || '20:00', rating || 4.0
+    location || '', open_time || '08:00', close_time || '20:00', rating || 4.0,
+    price_per_day || 0, has_parking ? 1 : 0, has_aircon ? 1 : 0, open_weekend ? 1 : 0
   ], function (err) {
     if (err) return res.status(500).json({ message: err.message });
     return res.status(201).json({ message: "Market created", marketId: this.lastID });

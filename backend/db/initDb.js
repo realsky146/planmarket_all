@@ -32,6 +32,10 @@ export const initDb = () => {
           open_time TEXT DEFAULT '08:00',
           close_time TEXT DEFAULT '20:00',
           rating REAL DEFAULT 4.0,
+          price_per_day INTEGER DEFAULT 0,
+          has_parking INTEGER DEFAULT 0,
+          has_aircon INTEGER DEFAULT 0,
+          open_weekend INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (owner_id) REFERENCES users(id)
         )
@@ -97,7 +101,13 @@ export const initDb = () => {
           db.run(`ALTER TABLE bookings ADD COLUMN booking_type TEXT DEFAULT 'daily'`, () => { });
           db.run(`ALTER TABLE bookings ADD COLUMN total_price REAL`, () => { });
 
-          console.log("🛠️ [Patch Check] คอลัมน์เสริมสำหรับ Bookings ถูกตรวจสอบและพร้อมใช้งานแล้ว!");
+          // patch สำหรับ markets ที่สร้างก่อนมีฟิลด์ใหม่
+          db.run(`ALTER TABLE markets ADD COLUMN price_per_day INTEGER DEFAULT 0`, () => { });
+          db.run(`ALTER TABLE markets ADD COLUMN has_parking INTEGER DEFAULT 0`, () => { });
+          db.run(`ALTER TABLE markets ADD COLUMN has_aircon INTEGER DEFAULT 0`, () => { });
+          db.run(`ALTER TABLE markets ADD COLUMN open_weekend INTEGER DEFAULT 0`, () => { });
+
+          console.log("🛠️ [Patch Check] คอลัมน์เสริมสำหรับ Bookings และ Markets ถูกตรวจสอบและพร้อมใช้งานแล้ว!");
           resolve();
         });
       });

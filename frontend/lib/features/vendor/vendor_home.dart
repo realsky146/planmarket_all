@@ -191,34 +191,6 @@ class _VendorHomeState extends State<VendorHome> {
     }
   }
 
-  // ⭐ เพิ่ม method แสดง popup รายละเอียดการปฏิเสธ
-  void _showRejectionDetail(Map<String, dynamic> booking) {
-    RejectionHandlerPopup.show(
-      context,
-      bookingId: booking['id']?.toString() ?? '0',
-      originalMarketId: booking['marketId']?.toString() ?? '0',
-      originalMarketName: booking['marketName'] ?? 'ไม่ระบุชื่อตลาด',
-      originalStallCode: booking['stallNumber'] ?? 'ไม่ระบุ',
-      rejectReason: booking['rejectReason'] ?? 'ข้อมูลไม่ผ่านการอนุมัติ',
-      onBookingSuccess: () {
-        _loadData();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('จองล็อคใหม่สำเร็จ! 🎉', style: GoogleFonts.kanit()),
-            backgroundColor: Colors.green,
-          ),
-        );
-      },
-      onDismiss: () {
-        final bookingId = int.tryParse(booking['id']?.toString() ?? '0') ?? 0;
-        if (bookingId > 0) {
-          ApiService.markBookingNotified(bookingId);
-        }
-        _loadData();
-      },
-    );
-  }
-
   int get _pendingCount =>
       _bookings.where((b) => b['status'] == 'pending').length;
   int get _approvedCount =>
@@ -448,25 +420,12 @@ class _VendorHomeState extends State<VendorHome> {
         statusText = 'รออนุมัติ';
     }
 
-    return GestureDetector(
-      // ⭐ กดได้เฉพาะรายการที่ถูกปฏิเสธ
-      onTap: status == 'rejected' ? () => _showRejectionDetail(booking) : null,
-      child: Container(
+    return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: statusColor.withOpacity(0.3)),
-          // ⭐ เพิ่ม shadow สำหรับรายการที่กดได้
-          boxShadow: status == 'rejected'
-              ? [
-                  BoxShadow(
-                    color: statusColor.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,36 +481,27 @@ class _VendorHomeState extends State<VendorHome> {
                 ),
               ],
             ),
-            // ⭐ แสดงข้อความแนะนำสำหรับรายการที่ถูกปฏิเสธ
             if (status == 'rejected') ...[
               const SizedBox(height: 10),
               const Divider(height: 1),
               const SizedBox(height: 10),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.touch_app_rounded,
-                          size: 14, color: Color(0xFFEF4444)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'กดเพื่อดูเหตุผลและจองใหม่',
-                        style: GoogleFonts.kanit(
-                          fontSize: 12,
-                          color: const Color(0xFFEF4444),
-                        ),
-                      ),
-                    ],
+                  Icon(Icons.info_outline_rounded,
+                      size: 14, color: Colors.grey.shade400),
+                  const SizedBox(width: 4),
+                  Text(
+                    'การจองนี้ถูกปิดแล้ว',
+                    style: GoogleFonts.kanit(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                    ),
                   ),
-                  const Icon(Icons.arrow_forward_ios_rounded,
-                      size: 12, color: Color(0xFFEF4444)),
                 ],
               ),
             ],
           ],
         ),
-      ),
     );
   }
 

@@ -143,7 +143,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getVendorBookings(int sellerId) async {
     try {
       final res = await _client
-          .get(Uri.parse('$baseUrl/bookings/seller/$sellerId'), headers: _headers)
+          .get(Uri.parse('$baseUrl/bookings/user/$sellerId'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         return {'success': true, 'data': jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>};

@@ -209,21 +209,24 @@ class _VendorBookingPageState extends State<VendorBookingPage> {
                       const SizedBox(height: 8),
                     ],
                     if (status == 'rejected') ...[
-                      SizedBox(
+                      Container(
                         width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF8CBC63),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const VendorMarketListPage()));
-                          },
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: Text('จองใหม่', style: GoogleFonts.kanit(fontWeight: FontWeight.bold)),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 16, color: Colors.grey.shade500),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'การจองนี้ถูกปิดแล้ว หากต้องการจองใหม่กรุณาไปที่หน้าตลาด',
+                                style: GoogleFonts.kanit(fontSize: 11, color: Colors.grey.shade600),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 8),

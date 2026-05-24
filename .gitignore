@@ -1,0 +1,15 @@
+# Backend
+backend/node_modules/
+backend/planmarket.db
+
+# Frontend build outputs
+frontend/build/
+frontend/plan_market/
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.iml
