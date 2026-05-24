@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../guest/home_page.dart';
 import '../vendor/vendor_home.dart';
 import '../market_owner/market_owner_home.dart';
@@ -10,11 +9,6 @@ import 'signup_page.dart';
 import 'signup_vendor_page.dart';
 import 'signup_market_page.dart';
 import '../../services/auth_service.dart';
-
-// ❌ ลบออกทั้งหมด (ไม่ได้ใช้):
-// import '../guest/market_list_page.dart';
-// import '../guest/market_detail_page.dart';
-// import '../guest/profile_page.dart';
 
 class SignInPage extends StatefulWidget {
   final String role;
@@ -58,22 +52,34 @@ class _SignInPageState extends State<SignInPage> {
       setState(() => _errorMsg = 'กรุณากรอกอีเมลและรหัสผ่าน');
       return;
     }
+
+    // ✅ แก้ไข: เติมวงเล็บปีกกาปิดที่หายไปตรงนี้
     setState(() {
       _loading = true;
       _errorMsg = null;
     });
+
     try {
       final result = await AuthService().signIn(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
         role: widget.role,
       );
+
       if (!mounted) return;
       setState(() => _loading = false);
+
       if (result['success'] == true) {
+        final user = result['user'] ?? {};
+        final String currentRole = result['role'] ?? widget.role;
+        final String status = user['status'] ?? result['status'] ?? 'active';
+        final String rejectReason =
+            user['reject_reason'] ?? 'เอกสารไม่ชัดเจนหรือข้อมูลไม่ครบถ้วน';
+
         _navigateByRole(
-          role: result['role'] ?? widget.role,
-          status: result['status'] ?? 'active',
+          role: currentRole,
+          status: status,
+          rejectReason: rejectReason,
         );
       } else {
         setState(() =>
@@ -89,26 +95,44 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
-  void _navigateByRole({required String role, required String status}) {
+  // ✅ แก้ไข: รวมฟังก์ชัน _navigateByRole เป็นหนึ่งเดียว ไม่ให้ซ้ำซ้อน
+  void _navigateByRole({
+    required String role,
+    required String status,
+    String rejectReason = '',
+  }) {
     Widget page;
+
+    bool isRejectedOrLocked = (status == 'rejected' || status == 'banned');
+
     switch (role) {
       case 'super_admin':
         page = const AdminHome();
         break;
+
       case 'market_owner':
       case 'market':
-        page = status == 'approved'
-            ? const MarketOwnerHome()
-            : const MarketPendingPage();
+        if (status == 'approved') {
+          page = const MarketOwnerHome();
+        } else {
+          page = const MarketPendingPage();
+        }
         break;
+
       case 'vendor':
-        page = const VendorHome();
+        page = page = VendorHome(
+          isRejectedOrLocked: isRejectedOrLocked,
+          statusType: status,
+          rejectReason: rejectReason,
+        );
         break;
+
       case 'customer':
       default:
         page = const HomePage();
         break;
     }
+
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => page),
@@ -128,6 +152,7 @@ class _SignInPageState extends State<SignInPage> {
       default:
         signUpPage = SignUpPage(role: widget.role);
     }
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => signUpPage),
@@ -191,7 +216,7 @@ class _SignInPageState extends State<SignInPage> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Text(
-                                    'Sign in — $_roleLabel',
+                                    'เข้าสู่ระบบ — $_roleLabel',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.kanit(
                                       fontSize: 18,
@@ -458,6 +483,7 @@ class _TopWavePainter extends CustomPainter {
     final paint = Paint()
       ..color = const Color(0xFF73A34F)
       ..style = PaintingStyle.fill;
+
     final path = Path()
       ..moveTo(0, 0)
       ..lineTo(0, size.height * 0.78)
@@ -467,6 +493,7 @@ class _TopWavePainter extends CustomPainter {
           size.width * 0.72, size.height * 1.02, size.width, size.height * 0.72)
       ..lineTo(size.width, 0)
       ..close();
+
     canvas.drawPath(path, paint);
   }
 

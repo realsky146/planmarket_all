@@ -1,20 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plan_market/features/guest/shop_list_page.dart';
 import 'package:plan_market/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_page.dart';
-import 'market_detail_page.dart';
 import 'market_list_page.dart';
 import 'profile_page.dart';
 import '../auth/select_role_page.dart';
 
-// ══════════════════════════════════════════════════════════
-// FavoritePage
-// ══════════════════════════════════════════════════════════
 class FavoritePage extends StatefulWidget {
   const FavoritePage({super.key});
-
   @override
   State<FavoritePage> createState() => _FavoritePageState();
 }
@@ -36,14 +31,10 @@ class _FavoritePageState extends State<FavoritePage> {
     final prefs = await SharedPreferences.getInstance();
     _userRole = prefs.getString('role');
     _userId = int.tryParse(prefs.getString('userId') ?? '');
-
     if (_userRole != null && _userId != null) {
       await _loadFavorites();
     }
-
     if (mounted) setState(() => _isLoading = false);
-
-    // Guest → popup แนะนำ
     if (_userRole == null && mounted) {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) _showRegisterSuggestionDialog();
@@ -62,14 +53,14 @@ class _FavoritePageState extends State<FavoritePage> {
       final s = e as Map<String, dynamic>;
       return {
         'id': s['seller_id'],
-        'shopName': s['shop_name'] ?? s['name'] ?? '-',
+        'shopName': s['shop_name'] ?? '-',
         'category': 'ร้านค้า',
-        'image': s['image_url'],
-        'isOpen': s['is_open'] == 1,
-        'status': s['is_open'] == 1 ? 'เปิด' : 'ปิด',
+        'image': s['image_url'] ?? '',
+        'isOpen': s['status'] == 'approved',
+        'status': s['status'] == 'approved' ? 'เปิด' : 'ปิด',
         'openDays': '-',
         'openTime': '-',
-        'marketName': s['market_name'] ?? '-',
+        'marketName': '-',
         'distance': '-',
         'isFavorite': true,
         'tags': <String>[],
@@ -80,23 +71,18 @@ class _FavoritePageState extends State<FavoritePage> {
     if (mounted) setState(() => _favorites = favs);
   }
 
-  // ✅ Toggle ถูกใจ (ในหน้านี้จะเป็นการ "ลบ" เสมอ)
   Future<void> _toggleFavorite(Map<String, dynamic> shop) async {
     final sellerId = int.tryParse(shop['id']?.toString() ?? '') ?? 0;
     if (sellerId == 0 || _userId == null) return;
-
-    await ApiService.removeFavorite(userId: _userId!, sellerId: sellerId);
+    await ApiService.removeFavorite(
+        _userId!, int.tryParse(shop['id']?.toString() ?? '0') ?? 0);
     setState(() {
       _favorites.removeWhere((s) => s['id'] == shop['id']);
     });
-
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'นำออกจากรายการถูกใจแล้ว',
-            style: GoogleFonts.kanit(),
-          ),
+          content: Text('นำออกจากรายการถูกใจแล้ว', style: GoogleFonts.kanit()),
           backgroundColor: Colors.grey,
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
@@ -107,9 +93,6 @@ class _FavoritePageState extends State<FavoritePage> {
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  // Popup แนะนำลงทะเบียน
-  // ══════════════════════════════════════════════════════════
   void _showRegisterSuggestionDialog() {
     showDialog(
       context: context,
@@ -196,8 +179,7 @@ class _FavoritePageState extends State<FavoritePage> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'ลงทะเบียนเพื่อบันทึกร้านที่ถูกใจ\n'
-                              'และติดตามร้านโปรดของคุณได้ทุกที่!',
+                              'ลงทะเบียนเพื่อบันทึกร้านที่ถูกใจ\nและติดตามร้านโปรดของคุณได้ทุกที่!',
                               style: GoogleFonts.kanit(
                                 fontSize: 13,
                                 color: const Color(0xFF374151),
@@ -306,9 +288,6 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // ✅ Popup รายละเอียดร้าน (ปรับใหม่ตามที่ขอ)
-  // ══════════════════════════════════════════════════════════
   void _showShopDetailDialog(Map<String, dynamic> shop) {
     showDialog(
       context: context,
@@ -333,7 +312,6 @@ class _FavoritePageState extends State<FavoritePage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Header ────────────────────────────
                 Container(
                   padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
                   decoration: const BoxDecoration(
@@ -359,14 +337,11 @@ class _FavoritePageState extends State<FavoritePage> {
                         ),
                       ),
                       const Spacer(),
-                      // ✅ ปุ่มถูกใจใน Header
                       GestureDetector(
                         onTap: () async {
                           await _toggleFavorite(shop);
                           setDialogState(() {});
-                          if (!(shop['isFavorite'] ?? true)) {
-                            Navigator.pop(context);
-                          }
+                          Navigator.pop(context);
                         },
                         child: Container(
                           padding: const EdgeInsets.all(8),
@@ -374,13 +349,9 @@ class _FavoritePageState extends State<FavoritePage> {
                             color: Colors.white.withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            shop['isFavorite'] == true
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: shop['isFavorite'] == true
-                                ? Colors.red
-                                : Colors.white,
+                          child: const Icon(
+                            Icons.favorite,
+                            color: Colors.red,
                             size: 22,
                           ),
                         ),
@@ -388,14 +359,11 @@ class _FavoritePageState extends State<FavoritePage> {
                     ],
                   ),
                 ),
-
-                // ── Scrollable Content ─────────────────
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // ── Card หลัก ──────────────────
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -408,7 +376,6 @@ class _FavoritePageState extends State<FavoritePage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // ── รูปร้าน ───────────────
                               Stack(
                                 children: [
                                   ClipRRect(
@@ -419,7 +386,6 @@ class _FavoritePageState extends State<FavoritePage> {
                                     child: SizedBox(
                                       height: 180,
                                       width: double.infinity,
-                                      // 🔌 รูปจากตอนร้านลงทะเบียน
                                       child: Image.network(
                                         shop['image'] ?? '',
                                         fit: BoxFit.cover,
@@ -438,12 +404,11 @@ class _FavoritePageState extends State<FavoritePage> {
                                         },
                                         errorBuilder: (_, __, ___) => Container(
                                           height: 180,
-                                          decoration: BoxDecoration(
+                                          decoration: const BoxDecoration(
                                             gradient: LinearGradient(
                                               colors: [
-                                                const Color(0xFF6E9B4C),
-                                                const Color(0xFF8CBC63)
-                                                    .withOpacity(0.5),
+                                                Color(0xFF6E9B4C),
+                                                Color(0xFF8CBC63),
                                               ],
                                             ),
                                           ),
@@ -458,7 +423,6 @@ class _FavoritePageState extends State<FavoritePage> {
                                       ),
                                     ),
                                   ),
-                                  // ✅ Status Badge บนรูป
                                   Positioned(
                                     top: 12,
                                     right: 12,
@@ -507,13 +471,11 @@ class _FavoritePageState extends State<FavoritePage> {
                                   ),
                                 ],
                               ),
-
                               Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // ── ชื่อร้าน + ประเภท ──
                                     Text(
                                       shop['shopName'] ?? '-',
                                       style: GoogleFonts.kanit(
@@ -523,183 +485,43 @@ class _FavoritePageState extends State<FavoritePage> {
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF8CBC63)
-                                                .withOpacity(0.12),
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            shop['category'] ?? '-',
-                                            style: GoogleFonts.kanit(
-                                              fontSize: 12,
-                                              color: const Color(0xFF6E9B4C),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF8CBC63)
+                                            .withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        shop['category'] ?? '-',
+                                        style: GoogleFonts.kanit(
+                                          fontSize: 12,
+                                          color: const Color(0xFF6E9B4C),
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                      ],
+                                      ),
                                     ),
                                     const SizedBox(height: 16),
-
-                                    // ── Info Rows ───────────
+                                    _buildDetailRow(Icons.access_time_rounded,
+                                        'เวลาเปิด', shop['openTime'] ?? '-'),
                                     _buildDetailRow(
-                                      Icons.access_time_rounded,
-                                      'เวลาเปิด',
-                                      shop['openTime'] ?? '-',
-                                    ),
-                                    _buildDetailRow(
-                                      Icons.calendar_today_rounded,
-                                      'วันที่เปิด',
-                                      shop['openDays'] ?? '-',
-                                    ),
-                                    _buildDetailRow(
-                                      Icons.location_on_rounded,
-                                      'ตลาด',
-                                      shop['marketName'] ?? '-',
-                                    ),
-                                    _buildDetailRow(
-                                      Icons.near_me_rounded,
-                                      'ระยะทาง',
-                                      shop['distance'] ?? '-',
-                                    ),
-                                    _buildDetailRow(
-                                      Icons.date_range_rounded,
-                                      'ระยะเวลาที่เปิดที่นี่',
-                                      '${shop['rentalPeriod'] ?? '-'} '
-                                          '(${shop['rentalStart'] ?? ''} - ${shop['rentalEnd'] ?? ''})',
-                                    ),
+                                        Icons.calendar_today_rounded,
+                                        'วันที่เปิด',
+                                        shop['openDays'] ?? '-'),
+                                    _buildDetailRow(Icons.location_on_rounded,
+                                        'ตลาด', shop['marketName'] ?? '-'),
+                                    _buildDetailRow(Icons.near_me_rounded,
+                                        'ระยะทาง', shop['distance'] ?? '-'),
                                   ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-
-                        const SizedBox(height: 12),
-
-                        // ── เมนู/สินค้า ────────────────
-                        if (shop['menu'] != null &&
-                            (shop['menu'] as List).isNotEmpty)
-                          _buildSectionCard(
-                            icon: Icons.restaurant_menu_rounded,
-                            title: 'เมนู / สินค้า',
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: ((shop['menu'] as List?)?.cast<String>() ?? <String>[]).map((m) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF3CD),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: const Color(0xFFFFB800)
-                                          .withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    m,
-                                    style: GoogleFonts.kanit(
-                                      fontSize: 13,
-                                      color: const Color(0xFFB45309),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-
-                        const SizedBox(height: 12),
-
-                        // ── ตารางออกร้าน ───────────────
-                        if (shop['schedule'] != null &&
-                            (shop['schedule'] as List).isNotEmpty)
-                          _buildSectionCard(
-                            icon: Icons.map_rounded,
-                            title: 'ตารางออกร้าน',
-                            child: Column(
-                              children:
-                                  (shop['schedule'] as List).map<Widget>((s) {
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF0F9EB),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFF8CBC63)
-                                          .withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF8CBC63)
-                                              .withOpacity(0.15),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.storefront_rounded,
-                                          color: Color(0xFF6E9B4C),
-                                          size: 20,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              s['marketName'] ?? '-',
-                                              style: GoogleFonts.kanit(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: const Color(0xFF1F2937),
-                                              ),
-                                            ),
-                                            Text(
-                                              '${s['day']}  •  ${s['time']}',
-                                              style: GoogleFonts.kanit(
-                                                fontSize: 12,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Text(
-                                        s['distance'] ?? '',
-                                        style: GoogleFonts.kanit(
-                                          fontSize: 12,
-                                          color: const Color(0xFF8CBC63),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-
                         const SizedBox(height: 16),
-
-                        // ── ปุ่ม Action ─────────────────
                         Row(
                           children: [
-                            // ปุ่มลบออกจากถูกใจ
                             Expanded(
                               child: SizedBox(
                                 height: 46,
@@ -721,20 +543,17 @@ class _FavoritePageState extends State<FavoritePage> {
                                       const Icon(Icons.heart_broken_rounded,
                                           color: Colors.redAccent, size: 18),
                                       const SizedBox(width: 6),
-                                      Text(
-                                        'ลบออก',
-                                        style: GoogleFonts.kanit(
-                                          color: Colors.redAccent,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
+                                      Text('ลบออก',
+                                          style: GoogleFonts.kanit(
+                                            color: Colors.redAccent,
+                                            fontWeight: FontWeight.w600,
+                                          )),
                                     ],
                                   ),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 12),
-                            // ปุ่มปิด
                             Expanded(
                               child: SizedBox(
                                 height: 46,
@@ -747,11 +566,9 @@ class _FavoritePageState extends State<FavoritePage> {
                                     ),
                                   ),
                                   onPressed: () => Navigator.pop(context),
-                                  child: Text(
-                                    'ปิด',
-                                    style: GoogleFonts.kanit(
-                                        fontWeight: FontWeight.bold),
-                                  ),
+                                  child: Text('ปิด',
+                                      style: GoogleFonts.kanit(
+                                          fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ),
@@ -769,7 +586,6 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
-  // ── Detail Row ────────────────────────────────────────────
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -790,21 +606,13 @@ class _FavoritePageState extends State<FavoritePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: GoogleFonts.kanit(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: GoogleFonts.kanit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1F2937),
-                  ),
-                ),
+                Text(label,
+                    style: GoogleFonts.kanit(fontSize: 11, color: Colors.grey)),
+                Text(value,
+                    style: GoogleFonts.kanit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937))),
               ],
             ),
           ),
@@ -813,50 +621,6 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
-  // ── Section Card ──────────────────────────────────────────
-  Widget _buildSectionCard({
-    required IconData icon,
-    required String title,
-    required Widget child,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF8CBC63).withOpacity(0.3),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: const Color(0xFF6E9B4C), size: 18),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: GoogleFonts.kanit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF374151),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════
-  // Navigation
-  // ══════════════════════════════════════════════════════════
   Future<void> _navigateToProfile() async {
     final prefs = await SharedPreferences.getInstance();
     final role = prefs.getString('role');
@@ -883,7 +647,6 @@ class _FavoritePageState extends State<FavoritePage> {
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (_) => const HomePage()));
         break;
-      // แก้ทุกหน้าที่มี case 3: ใน _navigateToPage
       case 3:
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (_) => const ShopListPage()));
@@ -894,9 +657,6 @@ class _FavoritePageState extends State<FavoritePage> {
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  // Build
-  // ══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -907,7 +667,6 @@ class _FavoritePageState extends State<FavoritePage> {
         ),
       );
     }
-
     return Theme(
       data: Theme.of(context).copyWith(
         textTheme: GoogleFonts.kanitTextTheme(Theme.of(context).textTheme),
@@ -930,7 +689,10 @@ class _FavoritePageState extends State<FavoritePage> {
                     child: Row(
                       children: [
                         IconButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () => Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const HomePage())),
                           icon: const Icon(Icons.arrow_back,
                               color: Colors.white, size: 22),
                         ),
@@ -943,7 +705,6 @@ class _FavoritePageState extends State<FavoritePage> {
                           ),
                         ),
                         const Spacer(),
-                        // ✅ แสดงจำนวนร้านที่ถูกใจ
                         if (_userRole != null && _favorites.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -984,139 +745,98 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
-  // ── Guest View ────────────────────────────────────────────
   Widget _buildGuestView() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: GestureDetector(
-            onTap: () => Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => const MarketListPage())),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                color: const Color(0xFF8CBC63).withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.search, color: Color(0xFF9CA3AF), size: 22),
-                  const SizedBox(width: 10),
-                  Text('ค้นหาร้านค้า...',
-                      style: GoogleFonts.kanit(
-                          color: const Color(0xFF9CA3AF), fontSize: 14)),
-                ],
+              child: const Icon(Icons.favorite_border_rounded,
+                  size: 40, color: Color(0xFF8CBC63)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'ยังไม่ได้เข้าสู่ระบบ',
+              style: GoogleFonts.kanit(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF374151),
               ),
             ),
-          ),
-        ),
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8CBC63).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.favorite_border_rounded,
-                        size: 40, color: Color(0xFF8CBC63)),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'ยังไม่ได้เข้าสู่ระบบ',
-                    style: GoogleFonts.kanit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF374151),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'ลงทะเบียนเพื่อบันทึกร้านที่ถูกใจ\nและติดตามร้านโปรดของคุณ',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.kanit(
-                        fontSize: 13, color: Colors.grey, height: 1.6),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8CBC63),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24)),
-                      ),
-                      onPressed: _showRegisterSuggestionDialog,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.person_add_rounded, size: 20),
-                          const SizedBox(width: 8),
-                          Text('ลงทะเบียนเพื่อเพิ่มร้านถูกใจ',
-                              style: GoogleFonts.kanit(
-                                  fontWeight: FontWeight.bold, fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF8CBC63)),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24)),
-                      ),
-                      onPressed: () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const MarketListPage())),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.search_rounded,
-                              color: Color(0xFF8CBC63), size: 20),
-                          const SizedBox(width: 8),
-                          Text('ค้นหาตลาดและร้านค้า',
-                              style: GoogleFonts.kanit(
-                                  color: const Color(0xFF8CBC63),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 8),
+            Text(
+              'ลงทะเบียนเพื่อบันทึกร้านที่ถูกใจ\nและติดตามร้านโปรดของคุณ',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.kanit(
+                  fontSize: 13, color: Colors.grey, height: 1.6),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8CBC63),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                ),
+                onPressed: _showRegisterSuggestionDialog,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.person_add_rounded, size: 20),
+                    const SizedBox(width: 8),
+                    Text('ลงทะเบียนเพื่อเพิ่มร้านถูกใจ',
+                        style: GoogleFonts.kanit(
+                            fontWeight: FontWeight.bold, fontSize: 14)),
+                  ],
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF8CBC63)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                ),
+                onPressed: () => Navigator.pushReplacement(context,
+                    MaterialPageRoute(builder: (_) => const MarketListPage())),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.search_rounded,
+                        color: Color(0xFF8CBC63), size: 20),
+                    const SizedBox(width: 8),
+                    Text('ค้นหาตลาดและร้านค้า',
+                        style: GoogleFonts.kanit(
+                            color: const Color(0xFF8CBC63),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14)),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  // ── Logged In View ────────────────────────────────────────
   Widget _buildLoggedInView() {
     if (_favorites.isEmpty) return _buildEmpty();
-
     return RefreshIndicator(
       color: const Color(0xFF8CBC63),
       onRefresh: _loadFavorites,
@@ -1128,7 +848,6 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
-  // ── Empty State ───────────────────────────────────────────
   Widget _buildEmpty() {
     return Center(
       child: Column(
@@ -1168,7 +887,6 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
-  // ── Shop Card ─────────────────────────────────────────────
   Widget _buildShopCard(Map<String, dynamic> shop) {
     return GestureDetector(
       onTap: () => _showShopDetailDialog(shop),
@@ -1185,153 +903,110 @@ class _FavoritePageState extends State<FavoritePage> {
             ),
           ],
         ),
-        child: Column(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ✅ รูปจาก network
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        bottomLeft: Radius.circular(16),
-                      ),
-                      child: SizedBox(
-                        width: 110,
-                        height: 110,
-                        child: Image.network(
-                          shop['image'] ?? '',
-                          fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) {
-                            if (progress == null) return child;
-                            return Container(
-                              color: Colors.grey,
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFF8CBC63),
-                                ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFF8CBC63).withOpacity(0.15),
-                            child: const Center(
-                              child: Icon(Icons.store_mall_directory_rounded,
-                                  color: Color(0xFF8CBC63), size: 44),
-                            ),
-                          ),
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              child: SizedBox(
+                width: 110,
+                height: 110,
+                child: Image.network(
+                  shop['image'] ?? '',
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) {
+                    if (progress == null) return child;
+                    return Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF8CBC63),
                         ),
                       ),
-                    ),
-                    // ข้อมูลร้าน
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 50, 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              shop['shopName'] ?? '-',
-                              style: GoogleFonts.kanit(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: const Color(0xFF1F2937),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              shop['category'] ?? '-',
-                              style: GoogleFonts.kanit(
-                                  fontSize: 12, color: const Color(0xFF6E9B4C)),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on_rounded,
-                                    size: 12, color: Colors.grey),
-                                const SizedBox(width: 2),
-                                Expanded(
-                                  child: Text(
-                                    '${shop['marketName']} • ${shop['distance']}',
-                                    style: GoogleFonts.kanit(
-                                        fontSize: 11, color: Colors.grey),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                const Icon(Icons.access_time_rounded,
-                                    size: 12, color: Colors.grey),
-                                const SizedBox(width: 2),
-                                Text(
-                                  shop['openTime'] ?? '-',
-                                  style: GoogleFonts.kanit(
-                                      fontSize: 11, color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // ✅ Status Badge
-                Positioned(
-                  top: 10,
-                  right: 44,
-                  child: _buildStatusBadge(shop['isOpen'] ?? false),
-                ),
-                // ✅ ปุ่มถูกใจ / ลบ
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () => _toggleFavorite(shop),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.red.withOpacity(0.2)),
-                      ),
-                      child: const Icon(Icons.favorite,
-                          color: Colors.redAccent, size: 18),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFF8CBC63).withOpacity(0.15),
+                    child: const Center(
+                      child: Icon(Icons.store_mall_directory_rounded,
+                          color: Color(0xFF8CBC63), size: 44),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-            // ── Tags ──────────────────────────────────
-            if (shop['tags'] != null && (shop['tags'] as List).isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: Row(
-                  children: ((shop['tags'] as List?)?.cast<String>() ?? <String>[])
-                      .take(3)
-                      .map((tag) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: _buildTag(tag),
-                          ))
-                      .toList(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      shop['shopName'] ?? '-',
+                      style: GoogleFonts.kanit(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: const Color(0xFF1F2937),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      shop['category'] ?? '-',
+                      style: GoogleFonts.kanit(
+                          fontSize: 12, color: const Color(0xFF6E9B4C)),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded,
+                            size: 12, color: Colors.grey),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            shop['marketName'] ?? '-',
+                            style: GoogleFonts.kanit(
+                                fontSize: 11, color: Colors.grey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    _buildStatusBadge(shop['isOpen'] ?? false),
+                  ],
                 ),
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: GestureDetector(
+                onTap: () => _toggleFavorite(shop),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.red.withOpacity(0.2)),
+                  ),
+                  child: const Icon(Icons.favorite,
+                      color: Colors.redAccent, size: 18),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ── Reusable Widgets ──────────────────────────────────────
   Widget _buildStatusBadge(bool isOpen) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1380,7 +1055,6 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
-  // ── Bottom Nav ────────────────────────────────────────────
   Widget _buildBottomNav() {
     final items = [
       {'icon': Icons.favorite_rounded, 'label': 'ถูกใจ'},
@@ -1390,7 +1064,6 @@ class _FavoritePageState extends State<FavoritePage> {
       {'icon': Icons.account_circle_rounded, 'label': 'โปรไฟล์'},
     ];
     final double itemWidth = MediaQuery.of(context).size.width / items.length;
-
     return SizedBox(
       height: 90,
       child: Stack(
@@ -1479,14 +1152,12 @@ class _FavoritePageState extends State<FavoritePage> {
   }
 }
 
-// ── Wave Painter ──────────────────────────────────────────
 class _TopWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = const Color(0xFF8CBC63)
       ..style = PaintingStyle.fill;
-
     final path = Path()
       ..moveTo(0, 0)
       ..lineTo(0, size.height * 0.75)
@@ -1496,7 +1167,6 @@ class _TopWavePainter extends CustomPainter {
           size.width * 0.75, size.height * 0.7, size.width, size.height * 0.9)
       ..lineTo(size.width, 0)
       ..close();
-
     canvas.drawPath(path, paint);
   }
 

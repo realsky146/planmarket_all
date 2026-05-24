@@ -7,9 +7,8 @@ import 'package:plan_market/features/guest/shop_list_page.dart';
 import '../guest/home_page.dart';
 import '../guest/favorite_page.dart';
 import '../guest/market_list_page.dart';
-import 'signin_page.dart'; // ✅ import SignInPage จากไฟล์ที่ถูกต้อง
+import 'signin_page.dart';
 
-// ✅ ชื่อ class ต้องเป็น LoginPage ไม่ใช่ SignInPage!
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -38,7 +37,6 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushReplacement(
               context, MaterialPageRoute(builder: (_) => const FavoritePage()));
           break;
-        // แก้ทุกหน้าที่มี case 3: ใน _navigateToPage
         case 3:
           Navigator.pushReplacement(
               context, MaterialPageRoute(builder: (_) => const ShopListPage()));
@@ -156,7 +154,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                // Admin (ไม่ต้องแสดงถ้าไม่ต้องการ)
+                                // ผู้ดูแลระบบ (ปุ่มแยกสำหรับจัดการตลาด/ระบบทั้งหมด)
                                 _buildRoleButton(
                                   label: 'ผู้ดูแลระบบ',
                                   subtitle: 'จัดการและดูแลระบบทั้งหมด',
@@ -180,11 +178,9 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ],
               ),
-              // Bottom Nav (ของเดิมที่มีอยู่แล้ว)
             ],
           ),
         ),
-        // Bottom Navigation Bar ของเดิม
         bottomNavigationBar: _buildBottomNav(),
       ),
     );
@@ -255,7 +251,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildBottomNav() {
-    // ใส่ Bottom Nav ของเดิมที่มีอยู่แล้วในไฟล์นี้ครับ
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: _navigateToPage,

@@ -1,89 +1,13 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'vendor_edit_profile_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'vendor_home.dart';
+import 'vendor_market_list_page.dart';
+import 'favorite_vendor_page.dart';
+import 'profile_vendor_page.dart';
+import 'vendor_edit_profile_page.dart';
+import '../../services/api_service.dart';
 
-// ══════════════════════════════════════════════════════════
-// Mock Data
-// ══════════════════════════════════════════════════════════
-class VendorShopInfoMockData {
-  static Map<String, dynamic> get profile => {
-        'success': true,
-        'data': {
-          'name': 'นางสาวมาลี ขายดี',
-          'email': 'vendor@test.com',
-          'phone': '082-345-6789',
-          'image':
-              'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
-          'lineId': '@maleephadthai',
-          'facebook': 'ร้านมาลีผัดไทย',
-        },
-      };
-
-  static List<Map<String, dynamic>> get bookingHistory => [
-        {
-          'id': 'bk_h001',
-          'marketName': 'ตลาดจตุจักร',
-          'stallIds': ['A3', 'A4'],
-          'startDate': '1 ม.ค. 2568',
-          'endDate': '31 มี.ค. 2568',
-          'totalDays': 45,
-          'totalPrice': 27000,
-          'status': 'approved',
-          'checkedIn': true,
-          'image':
-              'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200',
-          'bookingCode': 'BK-JJK-001',
-          'location': 'จตุจักร กรุงเทพฯ',
-          'zone': 'โซน A',
-          'stallSize': '3x3 เมตร',
-          'rentalRate': 600,
-          'note': 'อนุมัติแล้ว กรุณาเช็คอินก่อนเปิดร้าน',
-        },
-        {
-          'id': 'bk_h002',
-          'marketName': 'ตลาดนัดรถไฟ',
-          'stallIds': ['B5'],
-          'startDate': '1 ธ.ค. 2567',
-          'endDate': '31 พ.ค. 2568',
-          'totalDays': 60,
-          'totalPrice': 15000,
-          'status': 'approved',
-          'checkedIn': false,
-          'image':
-              'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=200',
-          'bookingCode': 'BK-RTF-002',
-          'location': 'รามอินทรา กรุงเทพฯ',
-          'zone': 'โซน B',
-          'stallSize': '2x2 เมตร',
-          'rentalRate': 250,
-          'note': 'กรุณาเช็คอินภายใน 30 นาทีก่อนเปิดตลาด',
-        },
-        {
-          'id': 'bk_h003',
-          'marketName': 'ตลาดเซฟวันโก',
-          'stallIds': ['C2'],
-          'startDate': '1 ก.ค. 2567',
-          'endDate': '30 ก.ย. 2567',
-          'totalDays': 30,
-          'totalPrice': 9000,
-          'status': 'completed',
-          'checkedIn': true,
-          'image':
-              'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200',
-          'bookingCode': 'BK-SVG-003',
-          'location': 'สวนหลวง กรุงเทพฯ',
-          'zone': 'โซน C',
-          'stallSize': '3x4 เมตร',
-          'rentalRate': 300,
-          'note': 'การจองเสร็จสิ้นแล้ว',
-        },
-      ];
-}
-
-// ══════════════════════════════════════════════════════════
-// VendorShopInfoPage
-// ══════════════════════════════════════════════════════════
 class VendorShopInfoPage extends StatefulWidget {
   const VendorShopInfoPage({super.key});
 
@@ -92,10 +16,12 @@ class VendorShopInfoPage extends StatefulWidget {
 }
 
 class _VendorShopInfoPageState extends State<VendorShopInfoPage> {
+  int _currentIndex = 3;
   bool _isLoading = true;
-  String _profileImageUrl = '';
-  String _profileName = '';
-  List<Map<String, dynamic>> _bookingHistory = [];
+  List<Map<String, dynamic>> _bookings = [];
+  String _userName = '';
+  String _userImage = '';
+  int _userId = 0;
 
   @override
   void initState() {
@@ -103,898 +29,545 @@ class _VendorShopInfoPageState extends State<VendorShopInfoPage> {
     _loadData();
   }
 
-  // ✅ FIX: โหลดจาก mock แยกกัน ไม่ใช้ Future.wait + cast ผิด
   Future<void> _loadData() async {
-    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      await Future.delayed(const Duration(milliseconds: 400));
-      if (!mounted) return;
+      final prefs = await SharedPreferences.getInstance();
+      _userId = int.tryParse(prefs.getString('userId') ?? '0') ?? 0;
+      _userName = prefs.getString('userName') ?? '';
+      _userImage = prefs.getString('userImage') ?? '';
 
-      final profile = VendorShopInfoMockData.profile;
-      final history = VendorShopInfoMockData.bookingHistory;
-
-      if (profile['success'] == true) {
-        final d = profile['data'] as Map<String, dynamic>;
-        setState(() {
-          _profileName = d['name'] as String? ?? '';
-          _profileImageUrl = d['image'] as String? ?? '';
-          _bookingHistory =
-              history.map((b) => Map<String, dynamic>.from(b)).toList();
-        });
+      if (_userId > 0) {
+        final response = await ApiService.getUserBookings(_userId);
+        if (response['success'] == true && response['data'] != null) {
+          final List<dynamic> rawData = response['data'];
+          setState(() {
+            _bookings = rawData
+                .where((b) => b['status'] == 'approved')
+                .map((b) => {
+                      'id': b['id']?.toString() ?? '',
+                      'marketName': b['market_name'] ?? '',
+                      'stallNumber': b['stall_number'] ?? '',
+                      'shopName': b['shop_name'] ?? '',
+                      'status': b['status'] ?? '',
+                      'startDate': b['start_date'] ?? b['created_at'] ?? '',
+                      'endDate': b['end_date'] ?? '',
+                      'marketId': b['market_id']?.toString() ?? '',
+                    })
+                .toList();
+          });
+        }
       }
     } catch (e) {
-      if (!mounted) return;
-      _showSnackbar('โหลดข้อมูลไม่สำเร็จ', isError: true);
+      debugPrint('Error loading shop info: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ✅ FIX: formatNumber ถูกต้อง
-  String _formatNumber(int n) {
-    final str = n.toString();
-    final result = StringBuffer();
-    final length = str.length;
-    for (int i = 0; i < length; i++) {
-      if (i > 0 && (length - i) % 3 == 0) {
-        result.write(',');
-      }
-      result.write(str[i]);
-    }
-    return result.toString();
-  }
-
-  void _showSnackbar(String msg, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: GoogleFonts.kanit()),
-        backgroundColor: isError ? Colors.redAccent : const Color(0xFF8CBC63),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  // QR Check-in Dialog
-  // ══════════════════════════════════════════════════════
-  void _showCheckinQR(Map<String, dynamic> booking) {
+  void _showQRCode(Map<String, dynamic> booking) {
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(ctx).size.height * 0.9,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF6E9B4C), Color(0xFF8CBC63)],
-                  ),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.qr_code_rounded,
-                        color: Colors.white, size: 32),
-                    const SizedBox(height: 6),
-                    Text(
-                      'QR Code เช็คอิน',
-                      style: GoogleFonts.kanit(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      booking['marketName'] ?? '-',
-                      style: GoogleFonts.kanit(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.85),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Content — Scrollable
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    children: [
-                      // QR Code
-                      Container(
-                        width: 180,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: const Color(0xFF8CBC63).withOpacity(0.4),
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: _buildMockQR(
-                            booking['bookingCode'] as String? ?? '-'),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Booking Code
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0F9EB),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFF8CBC63).withOpacity(0.3),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'รหัสการจอง',
-                              style: GoogleFonts.kanit(
-                                  fontSize: 11, color: Colors.grey),
-                            ),
-                            Text(
-                              booking['bookingCode'] as String? ?? '-',
-                              style: GoogleFonts.kanit(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF374151),
-                                letterSpacing: 2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // ✅ Info Box — แก้สีพื้นหลัง
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.07),
-                          borderRadius: BorderRadius.circular(10),
-                          border:
-                              Border.all(color: Colors.blue.withOpacity(0.25)),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.info_outline_rounded,
-                                color: Colors.blue, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'แสดง QR Code นี้ให้เจ้าหน้าที่ตลาด\nเพื่อยืนยันการเข้าออกร้าน',
-                                style: GoogleFonts.kanit(
-                                  fontSize: 12,
-                                  color: Colors.blue,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // ✅ Detail Grid — แก้สีพื้นหลัง
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                _qrDetailChip(
-                                  '🏪',
-                                  'ล็อค',
-                                  (booking['stallIds'] as List).join(', '),
-                                ),
-                                _qrDetailChip(
-                                  '📍',
-                                  'โซน',
-                                  booking['zone'] as String? ?? '-',
-                                ),
-                                _qrDetailChip(
-                                  booking['checkedIn'] == true ? '✅' : '⏳',
-                                  'สถานะ',
-                                  booking['checkedIn'] == true
-                                      ? 'เช็คอินแล้ว'
-                                      : 'ยังไม่เช็คอิน',
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            const Divider(height: 1),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                _qrDetailChip(
-                                  '📅',
-                                  'เริ่ม',
-                                  booking['startDate'] as String? ?? '-',
-                                ),
-                                _qrDetailChip(
-                                  '📅',
-                                  'สิ้นสุด',
-                                  booking['endDate'] as String? ?? '-',
-                                ),
-                                _qrDetailChip(
-                                  '📐',
-                                  'ขนาด',
-                                  booking['stallSize'] as String? ?? '-',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Note
-                      if ((booking['note'] as String? ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF9EC),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                                color: Colors.orange.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.chat_bubble_outline_rounded,
-                                  color: Colors.orange, size: 14),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  booking['note'] as String,
-                                  style: GoogleFonts.kanit(
-                                    fontSize: 11,
-                                    color: Colors.orange.shade700,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 14),
-
-                      // Close Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 44,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFD1D5DB)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text('ปิด',
-                              style: GoogleFonts.kanit(color: Colors.grey)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (ctx) => _QRDialog(booking: booking, userName: _userName),
     );
   }
 
-  // ✅ Mock QR ด้วย CustomPainter แทน Icon
-  Widget _buildMockQR(String code) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 120,
-          height: 120,
-          child: CustomPaint(painter: _SimpleQRPainter(code)),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          code,
-          style: GoogleFonts.kanit(
-            fontSize: 11,
-            color: Colors.grey,
-            letterSpacing: 1,
-          ),
-        ),
-      ],
-    );
+  void _navigateToPage(int index) {
+    if (index == _currentIndex) return;
+    setState(() => _currentIndex = index);
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      Widget? page;
+      switch (index) {
+        case 0: page = const VendorFavoritePage(); break;
+        case 1: page = const VendorMarketListPage(); break;
+        case 2: page = VendorHome(); break;
+        case 3: return;
+        case 4: page = const VendorProfilePage(); break;
+      }
+      if (page != null) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page!));
+      }
+    });
   }
 
-  Widget _qrDetailChip(String emoji, String label, String value) {
-    return Expanded(
-      child: Column(
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFEEEEEE),
+      body: Column(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)),
-          const SizedBox(height: 2),
-          Text(label,
-              style: GoogleFonts.kanit(fontSize: 10, color: Colors.grey)),
-          Text(
-            value,
-            style: GoogleFonts.kanit(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF374151),
+          // Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 50, 16, 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF8CBC63),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              ),
             ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            child: Column(
+              children: [
+                Text(
+                  'ข้อมูลร้านค้า',
+                  style: GoogleFonts.kanit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CircleAvatar(
+                  radius: 40,
+                  backgroundImage: _userImage.isNotEmpty ? NetworkImage(_userImage) : null,
+                  backgroundColor: Colors.white,
+                  child: _userImage.isEmpty
+                      ? const Icon(Icons.person, size: 40, color: Color(0xFF8CBC63))
+                      : null,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _userName.isEmpty ? 'ร้านค้า' : _userName,
+                  style: GoogleFonts.kanit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Booking List
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text(
+                  'ประวัติการจอง',
+                  style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Text(
+                  '${_bookings.length} รายการ',
+                  style: GoogleFonts.kanit(fontSize: 13, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF8CBC63)))
+                : _bookings.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.store_outlined, size: 48, color: Colors.grey),
+                            const SizedBox(height: 12),
+                            Text('ยังไม่มีการจองที่อนุมัติแล้ว', style: GoogleFonts.kanit(color: Colors.grey)),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8CBC63)),
+                              onPressed: () => Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (_) => const VendorMarketListPage()),
+                              ),
+                              child: Text('ค้นหาตลาด', style: GoogleFonts.kanit(color: Colors.white)),
+                            ),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        color: const Color(0xFF8CBC63),
+                        onRefresh: _loadData,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          itemCount: _bookings.length,
+                          itemBuilder: (_, i) => _buildBookingCard(_bookings[i]),
+                        ),
+                      ),
           ),
         ],
       ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // Build
-  // ══════════════════════════════════════════════════════
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFEEEEEE),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF8CBC63)),
-        ),
-      );
-    }
-
-    return Theme(
-      data: Theme.of(context).copyWith(
-        textTheme: GoogleFonts.kanitTextTheme(Theme.of(context).textTheme),
-      ),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFEEEEEE),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildWaveHeader(),
-              const SizedBox(height: 55),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ── ประวัติการจอง ─────────────────
-                      _sectionHeader('ประวัติการจอง'),
-                      const SizedBox(height: 10),
-                      if (_bookingHistory.isEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(Icons.calendar_today_rounded,
-                                  size: 40, color: Colors.grey),
-                              const SizedBox(height: 8),
-                              Text('ยังไม่มีประวัติการจอง',
-                                  style: GoogleFonts.kanit(color: Colors.grey)),
-                            ],
-                          ),
-                        )
-                      else
-                        ..._bookingHistory.map((b) => _buildHistoryCard(b)),
-
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Menu Card ─────────────────────────────────────────
-  Widget _menuCard({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    String? subtitle,
-    Color? color,
-  }) {
+  Widget _buildBookingCard(Map<String, dynamic> booking) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: ListTile(
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: (color ?? const Color(0xFF8CBC63)).withOpacity(0.1),
-            shape: BoxShape.circle,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.storefront_rounded, color: Color(0xFF8CBC63)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        booking['marketName'],
+                        style: GoogleFonts.kanit(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.grid_view_rounded, size: 12, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            'ล็อค: ${booking['stallNumber']}',
+                            style: GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 12, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            booking['startDate'],
+                            style: GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22C55E).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'เช็คอินแล้ว',
+                    style: GoogleFonts.kanit(fontSize: 11, color: const Color(0xFF22C55E), fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: Icon(icon, color: color ?? const Color(0xFF8CBC63), size: 20),
-        ),
-        title: Text(
-          label,
-          style: GoogleFonts.kanit(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
+          GestureDetector(
+            onTap: () => _showQRCode(booking),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8CBC63).withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(14),
+                  bottomRight: Radius.circular(14),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.qr_code_rounded, size: 16, color: Color(0xFF6E9B4C)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'กดเพื่อดู QR Code สำหรับเช็คอิน',
+                    style: GoogleFonts.kanit(fontSize: 12, color: const Color(0xFF6E9B4C), fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-        subtitle: subtitle != null
-            ? Text(subtitle,
-                style: GoogleFonts.kanit(fontSize: 11, color: Colors.grey))
-            : null,
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: onTap,
+        ],
       ),
     );
   }
 
-  // ── History Card ──────────────────────────────────────
-  Widget _buildHistoryCard(Map<String, dynamic> booking) {
-    final status = booking['status'] as String;
-    final checkedIn = booking['checkedIn'] as bool;
+  Widget _buildBottomNav() {
+    final items = [
+      {'icon': Icons.favorite_border_rounded, 'label': 'ถูกใจ'},
+      {'icon': Icons.storefront_rounded, 'label': 'ตลาด'},
+      {'icon': Icons.home_rounded, 'label': 'หน้าแรก'},
+      {'icon': Icons.shopping_cart_outlined, 'label': 'ร้านค้า'},
+      {'icon': Icons.account_circle_rounded, 'label': 'โปรไฟล์'},
+    ];
 
-    Color statusColor;
-    String statusText;
+    return Container(
+      height: 70,
+      decoration: const BoxDecoration(
+        color: Color(0xFF8CBC63),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(items.length, (i) {
+          final isSelected = _currentIndex == i;
+          return GestureDetector(
+            onTap: () => _navigateToPage(i),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  items[i]['icon'] as IconData,
+                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.5),
+                  size: 24,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  items[i]['label'] as String,
+                  style: GoogleFonts.kanit(
+                    fontSize: 11,
+                    color: isSelected ? Colors.white : Colors.white.withOpacity(0.5),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
 
-    if (status == 'completed') {
-      statusColor = Colors.grey;
-      statusText = 'เสร็จสิ้น';
-    } else if (checkedIn) {
-      statusColor = const Color(0xFF22C55E);
-      statusText = 'เช็คอินแล้ว';
-    } else {
-      statusColor = const Color(0xFF8CBC63);
-      statusText = 'อนุมัติแล้ว';
-    }
+// QR Code Dialog
+class _QRDialog extends StatelessWidget {
+  final Map<String, dynamic> booking;
+  final String userName;
 
-    return GestureDetector(
-      onTap: status != 'completed' ? () => _showCheckinQR(booking) : null,
+  const _QRDialog({required this.booking, required this.userName});
+
+  @override
+  Widget build(BuildContext context) {
+    final bookingId = booking['id'] ?? '';
+    final marketId = booking['marketId'] ?? '';
+    final qrData = 'PLANMARKET-BK-$bookingId-MK-$marketId';
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: statusColor.withOpacity(0.3), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // รูปตลาด
-                ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(12),
-                    bottomLeft: Radius.circular(status != 'completed' ? 0 : 12),
-                  ),
-                  child: SizedBox(
-                    width: 80,
-                    height: 95,
-                    child: Image.network(
-                      booking['image'] as String? ?? '',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: const Color(0xFFE8F5E9),
-                        child: const Icon(Icons.storefront_rounded,
-                            color: Color(0xFF8CBC63), size: 28),
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              decoration: const BoxDecoration(
+                color: Color(0xFF8CBC63),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.qr_code_rounded, color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'QR Code เช็คอิน',
+                      style: GoogleFonts.kanit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                ),
-                // ข้อมูล
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Market Info
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                booking['marketName'] as String? ?? '-',
-                                style: GoogleFonts.kanit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF1F2937),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                        const Icon(Icons.storefront_rounded, color: Color(0xFF8CBC63)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                booking['marketName'] ?? '',
+                                style: GoogleFonts.kanit(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: statusColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
+                              Text(
+                                'ล็อค: ${booking['stallNumber']} • ${booking['startDate']}',
+                                style: GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
                               ),
-                              child: Text(
-                                statusText,
-                                style: GoogleFonts.kanit(
-                                  fontSize: 10,
-                                  color: statusColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            const Icon(Icons.grid_view_rounded,
-                                size: 11, color: Colors.grey),
-                            const SizedBox(width: 3),
-                            Expanded(
-                              child: Text(
-                                'ล็อค: ${(booking['stallIds'] as List).join(', ')}',
-                                style: GoogleFonts.kanit(
-                                    fontSize: 11, color: Colors.grey),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            const Icon(Icons.date_range_rounded,
-                                size: 11, color: Colors.grey),
-                            const SizedBox(width: 3),
-                            Expanded(
-                              child: Text(
-                                '${booking['startDate']} - ${booking['endDate']}',
-                                style: GoogleFonts.kanit(
-                                    fontSize: 11, color: Colors.grey),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            // ✅ ราคาแสดงถูกต้อง
-                            Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  '฿${_formatNumber(booking['totalPrice'] as int)}',
-                                  style: GoogleFonts.kanit(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF6E9B4C),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Text(
-                              ' • ${booking['totalDays']} วัน',
-                              style: GoogleFonts.kanit(
-                                  fontSize: 11, color: Colors.grey),
-                            ),
-                            const Spacer(),
-                            if (status != 'completed')
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color:
-                                      const Color(0xFF8CBC63).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.qr_code_rounded,
-                                        size: 11, color: Color(0xFF6E9B4C)),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      'QR เช็คอิน',
-                                      style: GoogleFonts.kanit(
-                                        fontSize: 10,
-                                        color: const Color(0xFF6E9B4C),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-
-            // ✅ แถบ QR ด้านล่าง (เฉพาะ approved)
-            if (status != 'completed')
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8CBC63).withOpacity(0.08),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
+                  const SizedBox(height: 16),
+                  // QR Code
+                  Container(
+                    width: 200,
+                    height: 200,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF8CBC63), width: 2),
+                    ),
+                    child: CustomPaint(
+                      painter: _QRPainter(qrData),
+                    ),
                   ),
-                  border: Border(
-                    top: BorderSide(
-                        color: const Color(0xFF8CBC63).withOpacity(0.2)),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.qr_code_rounded,
-                        color: Color(0xFF6E9B4C), size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      'กดเพื่อดู QR Code สำหรับเช็คอิน',
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8CBC63).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'BK-${bookingId.toString().padLeft(6, '0')}',
                       style: GoogleFonts.kanit(
-                        fontSize: 11,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                         color: const Color(0xFF6E9B4C),
-                        fontWeight: FontWeight.w600,
+                        letterSpacing: 2,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'รหัสการจอง',
+                    style: GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  // Info
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue.shade400, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'แสดง QR Code นี้ให้เจ้าหน้าที่ตลาดเพื่อยืนยันการเข้าร้าน',
+                            style: GoogleFonts.kanit(fontSize: 11, color: Colors.blue.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.grey),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('ปิด', style: GoogleFonts.kanit(color: Colors.grey)),
+                    ),
+                  ),
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
   }
-
-  // ── Wave Header ───────────────────────────────────────
-  Widget _buildWaveHeader() {
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.bottomCenter,
-      children: [
-        SizedBox(
-          height: 120,
-          width: double.infinity,
-          child: CustomPaint(painter: _WavePainter()),
-        ),
-        Positioned(
-          top: 12,
-          left: 8,
-          child: IconButton(
-            onPressed: () {
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const VendorHome()),
-                );
-              }
-            },
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-          ),
-        ),
-        Positioned(
-          top: 18,
-          child: Text(
-            'ข้อมูลร้านค้า',
-            style: GoogleFonts.kanit(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: -45,
-          child: Container(
-            width: 90,
-            height: 90,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFE8F5E9),
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipOval(
-              child: _profileImageUrl.isNotEmpty
-                  ? Image.network(
-                      _profileImageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _avatarPlaceholder(),
-                    )
-                  : _avatarPlaceholder(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _avatarPlaceholder() => Container(
-        color: const Color(0xFFE8F5E9),
-        child: const Icon(Icons.person_rounded,
-            size: 50, color: Color(0xFF8CBC63)),
-      );
-
-  Widget _sectionHeader(String title) => Text(
-        title,
-        style: GoogleFonts.kanit(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-          color: const Color(0xFF374151),
-        ),
-      );
 }
 
-// ══════════════════════════════════════════════════════════
-// Simple QR Painter (จำลอง)
-// ══════════════════════════════════════════════════════════
-class _SimpleQRPainter extends CustomPainter {
+// QR Code Painter
+class _QRPainter extends CustomPainter {
   final String data;
-  _SimpleQRPainter(this.data);
+  _QRPainter(this.data);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF374151)
-      ..style = PaintingStyle.fill;
-
-    final rng = data.hashCode;
+    final paint = Paint()..style = PaintingStyle.fill;
+    final random = data.hashCode;
     const cells = 21;
     final cellSize = size.width / cells;
 
-    // วาด cells แบบ pseudo-random
-    for (int r = 0; r < cells; r++) {
-      for (int c = 0; c < cells; c++) {
-        final val = (rng ^ (r * 31 + c * 17)) % 3;
-        if (val == 0) {
-          canvas.drawRect(
-            Rect.fromLTWH(c * cellSize, r * cellSize, cellSize, cellSize),
-            paint,
-          );
-        }
-      }
-    }
+    for (int row = 0; row < cells; row++) {
+      for (int col = 0; col < cells; col++) {
+        bool isBlack = false;
 
-    // Finder patterns มุม 3 มุม
-    _drawFinder(canvas, paint, 0, 0, cellSize);
-    _drawFinder(canvas, paint, cells - 7, 0, cellSize);
-    _drawFinder(canvas, paint, 0, cells - 7, cellSize);
-  }
-
-  void _drawFinder(Canvas canvas, Paint paint, int row, int col, double cs) {
-    // กรอบนอก 7x7
-    paint.color = const Color(0xFF374151);
-    for (int r = 0; r < 7; r++) {
-      for (int c = 0; c < 7; c++) {
-        final isOuter = r == 0 || r == 6 || c == 0 || c == 6;
-        final isInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
-        if (isOuter || isInner) {
-          canvas.drawRect(
-            Rect.fromLTWH((col + c) * cs, (row + r) * cs, cs, cs),
-            paint,
-          );
+        // Finder patterns (corners)
+        if (_isFinderPattern(row, col, cells)) {
+          isBlack = _finderPatternValue(row, col);
         } else {
-          paint.color = Colors.white;
-          canvas.drawRect(
-            Rect.fromLTWH((col + c) * cs, (row + r) * cs, cs, cs),
-            paint,
-          );
-          paint.color = const Color(0xFF374151);
+          isBlack = ((random ^ (row * 31 + col * 17)) % 3) != 0;
         }
+
+        paint.color = isBlack ? Colors.black : Colors.white;
+        canvas.drawRect(
+          Rect.fromLTWH(col * cellSize, row * cellSize, cellSize, cellSize),
+          paint,
+        );
       }
     }
   }
 
-  @override
-  bool shouldRepaint(_) => false;
-}
+  bool _isFinderPattern(int r, int c, int size) {
+    return (r < 8 && c < 8) || (r < 8 && c >= size - 8) || (r >= size - 8 && c < 8);
+  }
 
-// ══════════════════════════════════════════════════════════
-// Wave Painter
-// ══════════════════════════════════════════════════════════
-class _WavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF8CBC63)
-      ..style = PaintingStyle.fill;
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(0, size.height * 0.75)
-      ..quadraticBezierTo(size.width * 0.25, size.height * 1.1,
-          size.width * 0.5, size.height * 0.85)
-      ..quadraticBezierTo(
-          size.width * 0.75, size.height * 0.6, size.width, size.height * 0.9)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(path, paint);
+  bool _finderPatternValue(int r, int c) {
+    int localR = r;
+    int localC = c;
+    if (r >= 14) localR = r - 14;
+    if (c >= 14) localC = c - 14;
+
+    if (localR == 0 || localR == 6 || localC == 0 || localC == 6) return true;
+    if (localR >= 2 && localR <= 4 && localC >= 2 && localC <= 4) return true;
+    return false;
   }
 
   @override

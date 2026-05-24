@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plan_market/features/auth/signin_page.dart';
-import 'package:plan_market/features/auth/signup_page.dart';
 import 'package:plan_market/features/guest/shop_list_page.dart';
-
 import '../guest/home_page.dart';
 import '../guest/favorite_page.dart';
 import '../guest/market_list_page.dart';
-import 'login_page.dart';
 
 class SelectRolePage extends StatefulWidget {
   const SelectRolePage({super.key});
@@ -17,9 +14,8 @@ class SelectRolePage extends StatefulWidget {
 }
 
 class _SelectRolePageState extends State<SelectRolePage> {
-  int currentIndex = 4; // โปรไฟล์ = active
+  int currentIndex = 4;
 
-  // ── Navigation ────────────────────────────────────────────
   void _navigateToPage(int index) {
     if (index == currentIndex) return;
     setState(() => currentIndex = index);
@@ -28,34 +24,44 @@ class _SelectRolePageState extends State<SelectRolePage> {
       if (!mounted) return;
 
       switch (index) {
-        case 0: // ถูกใจ
+        case 0:
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const FavoritePage()),
           );
           break;
-        case 1: // ตลาด ✅ แก้จาก MarketListPage
+        case 1:
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const MarketListPage()),
           );
           break;
-        case 2: // หน้าหลัก ✅ แก้จาก HomePage
+        case 2:
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const HomePage()),
           );
           break;
-        case 3: // ร้านค้า (ยังไม่มีหน้าจริง)
-        // แก้ทุกหน้าที่มี case 3: ใน _navigateToPage
         case 3:
           Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const ShopListPage()));
+            context,
+            MaterialPageRoute(builder: (_) => const ShopListPage()),
+          );
           break;
-        case 4: // โปรไฟล์ = อยู่หน้านี้แล้ว
+        case 4:
           break;
       }
     });
+  }
+
+  // ✅ เพิ่ม: ฟังก์ชันเปิด Admin Login
+  void _showAdminLogin() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SignInPage(role: 'super_admin'),
+      ),
+    );
   }
 
   @override
@@ -75,30 +81,44 @@ class _SelectRolePageState extends State<SelectRolePage> {
                 width: double.infinity,
                 child: CustomPaint(painter: _TopWavePainter()),
               ),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
+                  // ✅ Title Bar พร้อมปุ่ม Admin (กดค้าง)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 0, 0),
-                    child: Text(
-                      'เลือกประเภทการใช้งาน',
-                      style: GoogleFonts.kanit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 8, 0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'เลือกประเภทการใช้งาน',
+                          style: GoogleFonts.kanit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        // ✅ ปุ่ม Admin (กดค้าง)
+                        GestureDetector(
+                          onLongPress: _showAdminLogin,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            child: Icon(
+                              Icons.settings,
+                              color: Colors.white.withOpacity(0.5),
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const SizedBox(height: 20),
-
                           // Logo
                           SizedBox(
                             width: 200,
@@ -114,7 +134,6 @@ class _SelectRolePageState extends State<SelectRolePage> {
                             ),
                           ),
                           const SizedBox(height: 32),
-
                           // Header Text
                           Text(
                             'ยินดีต้อนรับ',
@@ -132,7 +151,6 @@ class _SelectRolePageState extends State<SelectRolePage> {
                             ),
                           ),
                           const SizedBox(height: 32),
-
                           // Role Buttons
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -140,22 +158,21 @@ class _SelectRolePageState extends State<SelectRolePage> {
                               children: [
                                 // ลูกค้า
                                 _RoleButton(
-                                  label: 'ลงทะเบียนลูกค้า',
+                                  label: 'เข้าสู่ระบบลูกค้า',
                                   icon: Icons.person_rounded,
-                                  description: 'ค้นหาตลาดและร้านค้าใกล้บ้าน',
+                                  description: 'เข้าสู่ระบบหรือสมัครบัญชีใหม่',
                                   onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) =>
-                                          const SignUpPage(role: 'customer'),
+                                          const SignInPage(role: 'customer'),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-
                                 // ร้านค้า
                                 _RoleButton(
-                                  label: 'ลงทะเบียนร้านค้า',
+                                  label: 'เข้าสู่ระบบร้านค้า',
                                   icon: Icons.storefront_rounded,
                                   description: 'จองแผงและบริหารร้านค้า',
                                   onTap: () => Navigator.push(
@@ -167,10 +184,9 @@ class _SelectRolePageState extends State<SelectRolePage> {
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-
                                 // ตลาด
                                 _RoleButton(
-                                  label: 'ลงทะเบียนตลาด',
+                                  label: 'เข้าสู่ระบบตลาด',
                                   icon: Icons.store_mall_directory_rounded,
                                   description: 'จัดการตลาดและแผงค้า',
                                   onTap: () => Navigator.push(
@@ -184,7 +200,6 @@ class _SelectRolePageState extends State<SelectRolePage> {
                               ],
                             ),
                           ),
-
                           // ข้ามการลงทะเบียน
                           const SizedBox(height: 24),
                           TextButton(
@@ -203,15 +218,32 @@ class _SelectRolePageState extends State<SelectRolePage> {
                               ),
                             ),
                           ),
-                          const SizedBox(
-                              height: 100), // padding ล่าง bottom nav
+
+                          // ✅ เพิ่ม: ปุ่ม Admin Login (แบบเห็นชัด - สำหรับ dev)
+                          const SizedBox(height: 16),
+                          TextButton.icon(
+                            onPressed: _showAdminLogin,
+                            icon: const Icon(
+                              Icons.admin_panel_settings,
+                              size: 18,
+                              color: Colors.grey,
+                            ),
+                            label: Text(
+                              'เข้าสู่ระบบผู้ดูแล',
+                              style: GoogleFonts.kanit(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 100),
                         ],
                       ),
                     ),
                   ),
                 ],
               ),
-
               // Bottom Nav
               Positioned(
                 bottom: 0,
@@ -226,7 +258,6 @@ class _SelectRolePageState extends State<SelectRolePage> {
     );
   }
 
-  // ── Bottom Nav ────────────────────────────────────────────
   Widget _buildBottomNav() {
     final items = [
       {'icon': Icons.favorite_border_rounded, 'label': 'ถูกใจ'},
@@ -242,7 +273,6 @@ class _SelectRolePageState extends State<SelectRolePage> {
       height: 90,
       child: Stack(
         children: [
-          // Bar
           Positioned(
             bottom: 0,
             left: 0,
@@ -291,8 +321,6 @@ class _SelectRolePageState extends State<SelectRolePage> {
               ),
             ),
           ),
-
-          // Floating Active Button
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutBack,
@@ -326,9 +354,6 @@ class _SelectRolePageState extends State<SelectRolePage> {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// _RoleButton — เพิ่ม icon + description
-// ══════════════════════════════════════════════════════════
 class _RoleButton extends StatelessWidget {
   final String label;
   final String description;
@@ -359,7 +384,6 @@ class _RoleButton extends StatelessWidget {
         onPressed: onTap,
         child: Row(
           children: [
-            // Icon Circle
             Container(
               width: 44,
               height: 44,
@@ -374,8 +398,6 @@ class _RoleButton extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-
-            // Text
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,9 +420,7 @@ class _RoleButton extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Arrow
-            Icon(
+            const Icon(
               Icons.chevron_right_rounded,
               color: Colors.grey,
               size: 22,
@@ -412,7 +432,6 @@ class _RoleButton extends StatelessWidget {
   }
 }
 
-// ── Wave Painter ──────────────────────────────────────────
 class _TopWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

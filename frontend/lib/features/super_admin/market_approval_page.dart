@@ -373,7 +373,7 @@ class _MarketApprovalPageState extends State<MarketApprovalPage>
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D9CDB),
+                    backgroundColor: const Color.fromARGB(255, 167, 226, 30),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),

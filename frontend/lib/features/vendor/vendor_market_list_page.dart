@@ -4,8 +4,8 @@ import 'package:plan_market/features/vendor/vendor_shop_info_page.dart';
 import 'vendor_home.dart';
 import 'favorite_vendor_page.dart';
 import 'profile_vendor_page.dart';
-import 'vendor_booking_page.dart';
-import '../../services/vendor_service.dart';
+import '../../services/api_service.dart'; // ⭐ เปลี่ยนมาใช้ ApiService โดยตรง
+import 'stall_selection_page.dart';
 
 class VendorMarketListPage extends StatefulWidget {
   const VendorMarketListPage({super.key});
@@ -20,9 +20,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
   final _searchCtrl = TextEditingController();
   String _searchText = '';
   bool _isLoading = true;
-
   final _filters = ['แนะนำ', 'ใกล้ฉัน', 'คนเยอะ', 'ราคาถูก', 'เปิดอยู่'];
-
   List<Map<String, dynamic>> _markets = [];
 
   @override
@@ -31,31 +29,50 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
     _loadMarkets();
   }
 
+  // ⭐ แก้ไข _loadMarkets() ให้ดึงข้อมูลจาก API จริง
   Future<void> _loadMarkets() async {
     setState(() => _isLoading = true);
     try {
-      final raw = await VendorService().getMarkets();
+      // ⭐ ใช้ ApiService.getMarkets() แทน VendorService
+      final result = await ApiService.getMarkets();
       if (!mounted) return;
+
+      if (result['success'] != true) {
+        setState(() => _markets = []);
+        return;
+      }
+
+      final raw = result['data'] as List<dynamic>;
+
       setState(() {
-        _markets = raw.map((m) => {
-          'id': m['id']?.toString() ?? '',
-          'name': m['name'] ?? '',
-          'distance': '0.0 กม.',
-          'location': m['description'] ?? '',
-          'time': 'ตรวจสอบที่ตลาด',
-          'isOpen': m['isOpen'] ?? true,
-          'tags': <String>[],
-          'stallsAvailable': 1,
-          'totalStalls': m['totalStalls'] ?? 0,
-          'pricePerDay': 0,
-          'traffic': 'ปานกลาง',
-          'rating': (m['rating'] ?? 4.0).toDouble(),
-          'isFavorite': false,
-          'reason': 'แนะนำสำหรับคุณ',
-          'image': m['imageUrl'] ?? '',
+        _markets = raw.map((m) {
+          // ⭐ ดึงข้อมูลจาก API ให้ครบ
+          final totalStalls = m['total_stalls'] ?? 0;
+          final availableStalls = m['available_stalls'] ?? 1;
+
+          return {
+            'id': m['id']?.toString() ?? '',
+            'name': m['name'] ?? '',
+            'distance': '0.0 กม.',
+            'location': m['location'] ?? m['description'] ?? '',
+            'time':
+                '${m['open_time'] ?? '08:00'} - ${m['close_time'] ?? '20:00'}',
+            'isOpen': true,
+            'tags': <String>[],
+            'stallsAvailable': availableStalls,
+            'totalStalls': totalStalls,
+            'pricePerDay': m['price_per_day'] ?? 0,
+            'traffic': 'ปานกลาง',
+            'rating': double.tryParse(m['rating']?.toString() ?? '4.0') ?? 4.0,
+            'isFavorite': false,
+            'reason': 'แนะนำสำหรับคุณ',
+            // ⭐ ดึงรูปภาพจาก API
+            'image': m['image_url'] ?? '',
+          };
         }).toList();
       });
     } catch (e) {
+      debugPrint('❌ Error loading markets: $e');
       if (!mounted) return;
       setState(() => _markets = []);
     } finally {
@@ -67,7 +84,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
   List<Map<String, dynamic>> get _filteredMarkets {
     var list = List<Map<String, dynamic>>.from(_markets);
 
-    // Search
     if (_searchText.isNotEmpty) {
       list = list
           .where((m) =>
@@ -80,7 +96,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
           .toList();
     }
 
-    // Filter
     switch (_selectedFilter) {
       case 'ใกล้ฉัน':
         list.sort((a, b) {
@@ -107,6 +122,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
         list = list.where((m) => m['isOpen'] == true).toList();
         break;
     }
+
     return list;
   }
 
@@ -123,7 +139,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
           break;
         case 2:
           Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const VendorHome()));
+              context, MaterialPageRoute(builder: (_) => VendorHome()));
           break;
         case 3:
           Navigator.pushReplacement(context,
@@ -143,9 +159,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
     super.dispose();
   }
 
-  // ══════════════════════════════════════════════════════
-  // Build
-  // ══════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Theme(
@@ -157,16 +170,13 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
         body: SafeArea(
           child: Stack(
             children: [
-              // Wave Header
               SizedBox(
                 height: 160,
                 width: double.infinity,
                 child: CustomPaint(painter: _TopWavePainter()),
               ),
-
               Column(
                 children: [
-                  // ── Header ──────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                     child: Column(
@@ -181,7 +191,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        // ── Search Bar ─────────────────────
                         TextField(
                           controller: _searchCtrl,
                           onChanged: (v) => setState(() => _searchText = v),
@@ -215,10 +224,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
-                  // ── Filter Chips ─────────────────────────
                   SizedBox(
                     height: 40,
                     child: ListView.separated(
@@ -261,35 +267,35 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                       },
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
-                  // ── Market List ──────────────────────────
                   Expanded(
                     child: _isLoading
                         ? const Center(
                             child: CircularProgressIndicator(
                                 color: Color(0xFF8CBC63)))
                         : _filteredMarkets.isEmpty
-                        ? Center(
-                            child: Text(
-                              'ไม่พบตลาดที่ค้นหา',
-                              style: GoogleFonts.kanit(color: Colors.grey),
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                            itemCount: _filteredMarkets.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (_, i) =>
-                                _buildMarketCard(_filteredMarkets[i]),
-                          ),
+                            ? Center(
+                                child: Text(
+                                  'ไม่พบตลาดที่ค้นหา',
+                                  style: GoogleFonts.kanit(color: Colors.grey),
+                                ),
+                              )
+                            : RefreshIndicator(
+                                color: const Color(0xFF8CBC63),
+                                onRefresh: _loadMarkets,
+                                child: ListView.separated(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                                  itemCount: _filteredMarkets.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 12),
+                                  itemBuilder: (_, i) =>
+                                      _buildMarketCard(_filteredMarkets[i]),
+                                ),
+                              ),
                   ),
                 ],
               ),
-
-              // Bottom Nav
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -303,9 +309,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // Market Card
-  // ══════════════════════════════════════════════════════
   Widget _buildMarketCard(Map<String, dynamic> m) {
     final isOpen = m['isOpen'] as bool;
     final tags = (m['tags'] as List).cast<String>();
@@ -349,7 +352,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ รูปตลาดจาก Network
                     Stack(
                       children: [
                         ClipRRect(
@@ -387,7 +389,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                             ),
                           ),
                         ),
-                        // ✅ Badge เปิด/ปิด
                         Positioned(
                           top: 4,
                           right: 4,
@@ -406,14 +407,11 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(width: 12),
-
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ชื่อ + ถูกใจ
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -442,17 +440,14 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 2),
-
-                          // ระยะทาง + เวลา
                           Row(
                             children: [
                               const Icon(Icons.location_on,
                                   size: 12, color: Color(0xFF9CA3AF)),
                               const SizedBox(width: 2),
                               Text(
-                                '${m['distance']}',
+                                m['distance'] as String,
                                 style: GoogleFonts.kanit(
                                   fontSize: 11,
                                   color: const Color(0xFF6B7280),
@@ -474,10 +469,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 6),
-
-                          // Stats: แผงว่าง + Traffic + Rating
                           Row(
                             children: [
                               _miniStat(
@@ -509,10 +501,7 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 10),
-
-                // Tags + ราคา
                 Row(
                   children: [
                     Expanded(
@@ -539,7 +528,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                             .toList(),
                       ),
                     ),
-                    // ราคา
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
@@ -561,13 +549,10 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
               ],
             ),
           ),
-
-          // ── เหตุผลแนะนำ + ปุ่มจอง ──────────────────────
           Container(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Row(
               children: [
-                // เหตุผล
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -595,10 +580,8 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                     ],
                   ),
                 ),
-
                 const Spacer(),
-
-                // ✅ ปุ่มจองแผง → ส่ง market data ครบ
+                // ⭐ แก้ปุ่มจองให้ไปหน้า StallSelectionPage
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
@@ -612,15 +595,13 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+                  // ⭐ แก้ไขตรงนี้ - ไม่มี syntax error แล้ว
                   onPressed: available > 0
                       ? () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => VendorBookingPage(
-                                // ✅ ส่งข้อมูลตลาดครบ
+                              builder: (_) => StallSelectionPage(
                                 market: m,
-                                marketId: m['id'] as String,
-                                marketName: m['name'] as String,
                               ),
                             ),
                           )
@@ -659,9 +640,6 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // Bottom Nav
-  // ══════════════════════════════════════════════════════
   Widget _buildBottomNav() {
     final items = [
       {'icon': Icons.favorite_border_rounded, 'label': 'ถูกใจ'},
@@ -771,14 +749,12 @@ class _VendorMarketListPageState extends State<VendorMarketListPage> {
   }
 }
 
-// ── Wave Painter ──────────────────────────────────────────
 class _TopWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = const Color(0xFF73A34F)
       ..style = PaintingStyle.fill;
-
     final path = Path();
     path.moveTo(0, 0);
     path.lineTo(0, size.height * 0.78);

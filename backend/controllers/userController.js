@@ -1,51 +1,143 @@
-import db from "../db/database.js";
+// controllers/userController.js
+import db from './../db/database.js';
 
-export const getUsers = (req, res) => {
-  const sql = `SELECT id, name, email, role, status FROM users ORDER BY id ASC`;
-  db.all(sql, [], (err, rows) => {
-    if (err) return res.status(500).json({ message: err.message });
-    return res.json(rows);
+// ดึงผู้ใช้ทั้งหมด
+export const getAllUsers = (req, res) => {
+  const query = `SELECT * FROM users ORDER BY created_at DESC`;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    res.json({ success: true, data: rows });
   });
 };
 
-export const approveUser = (req, res) => {
-  const userId = req.params.id;
-  db.run(`UPDATE users SET status = 'approved' WHERE id = ?`, [userId], function (err) {
-    if (err) return res.status(500).json({ message: err.message });
-    if (this.changes === 0) return res.status(404).json({ message: "User not found" });
-    return res.json({ message: "User approved" });
+// ดึงผู้ใช้ตาม ID
+export const getUserById = (req, res) => {
+  const { id } = req.params;
+
+  db.get(`SELECT * FROM users WHERE id = ?`, [id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (!row) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, data: row });
   });
 };
 
-export const rejectUser = (req, res) => {
-  const userId = req.params.id;
-  db.run(`UPDATE users SET status = 'rejected' WHERE id = ?`, [userId], function (err) {
-    if (err) return res.status(500).json({ message: err.message });
-    if (this.changes === 0) return res.status(404).json({ message: "User not found" });
-    return res.json({ message: "User rejected" });
-  });
-};
-
-// GET /users/sellers — ดึงรายชื่อผู้ค้าที่มี booking อนุมัติแล้ว
+// ดึงผู้ขายทั้งหมด
 export const getSellers = (req, res) => {
-  const sql = `
-    SELECT
-      u.id,
-      COALESCE(b.shop_name, u.name) AS shop_name,
-      u.name,
-      u.image_url,
-      MAX(m.name) AS market_name,
-      CASE WHEN COUNT(b.id) > 0 THEN 1 ELSE 0 END AS is_open
-    FROM users u
-    LEFT JOIN bookings b ON b.seller_id = u.id AND b.status = 'approved'
-    LEFT JOIN stalls s ON b.stall_id = s.id
-    LEFT JOIN markets m ON s.market_id = m.id
-    WHERE u.role = 'seller' AND u.status = 'approved'
-    GROUP BY u.id
-    ORDER BY is_open DESC, u.id ASC
-  `;
-  db.all(sql, [], (err, rows) => {
-    if (err) return res.status(500).json({ message: err.message });
-    return res.json(rows);
+  const query = `SELECT * FROM users WHERE role = 'seller' ORDER BY created_at DESC`;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    res.json({ success: true, data: rows });
+  });
+};
+
+// ดึงลูกค้าทั้งหมด
+export const getCustomers = (req, res) => {
+  const query = `SELECT * FROM users WHERE role = 'customer' ORDER BY created_at DESC`;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    res.json({ success: true, data: rows });
+  });
+};
+
+// ✅ เพิ่ม getPendingMarkets
+export const getPendingMarkets = (req, res) => {
+  const query = `
+        SELECT m.*, u.name as owner_name, u.email as owner_email
+        FROM markets m
+        LEFT JOIN users u ON m.owner_id = u.id
+        WHERE m.status = 'pending'
+        ORDER BY m.created_at DESC
+    `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    res.json({ success: true, data: rows });
+  });
+};
+
+// สร้างผู้ใช้ใหม่
+export const createUser = (req, res) => {
+  const { name, email, password, phone, role } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Name, email and password are required'
+    });
+  }
+
+  const query = `
+        INSERT INTO users (name, email, password, phone, role, status)
+        VALUES (?, ?, ?, ?, ?, 'active')
+    `;
+
+  db.run(query, [name, email, password, phone || '', role || 'customer'], function (err) {
+    if (err) {
+      if (err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ success: false, message: 'Email already exists' });
+      }
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: { id: this.lastID }
+    });
+  });
+};
+
+// อัพเดทผู้ใช้
+export const updateUser = (req, res) => {
+  const { id } = req.params;
+  const { name, email, phone, role, status } = req.body;
+
+  const query = `
+        UPDATE users 
+        SET name = COALESCE(?, name),
+            email = COALESCE(?, email),
+            phone = COALESCE(?, phone),
+            role = COALESCE(?, role),
+            status = COALESCE(?, status)
+        WHERE id = ?
+    `;
+
+  db.run(query, [name, email, phone, role, status, id], function (err) {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, message: 'User updated successfully' });
+  });
+};
+
+// ลบผู้ใช้
+export const deleteUser = (req, res) => {
+  const { id } = req.params;
+
+  db.run(`DELETE FROM users WHERE id = ?`, [id], function (err) {
+    if (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, message: 'User deleted successfully' });
   });
 };

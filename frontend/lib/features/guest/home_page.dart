@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plan_market/features/auth/select_role_page.dart';
 import 'package:plan_market/features/guest/shop_list_page.dart';
@@ -9,12 +9,8 @@ import 'market_list_page.dart';
 import 'market_detail_page.dart';
 import 'profile_page.dart';
 
-// ══════════════════════════════════════════════════════════
-// HomePage
-// ══════════════════════════════════════════════════════════
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -24,7 +20,6 @@ class _HomePageState extends State<HomePage> {
   String? _userRole;
   int? _userId;
   bool _isLoading = true;
-
   List<Map<String, dynamic>> _recommendedShops = [];
   List<Map<String, dynamic>> _userFavorites = [];
   List<Map<String, dynamic>> _markets = [];
@@ -39,13 +34,11 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     _userRole = prefs.getString('role');
     _userId = int.tryParse(prefs.getString('userId') ?? '');
-
     final futures = [_loadMarkets(), _loadRecommendedShops()];
     if (_userRole != null && _userId != null) {
       futures.add(_loadUserFavorites());
     }
     await Future.wait(futures);
-
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -93,7 +86,7 @@ class _HomePageState extends State<HomePage> {
         'category': 'ร้านค้า',
         'marketName': s['market_name'] ?? '-',
         'isOpen': s['is_open'] == 1,
-        'image': s['image_url'],
+        'image': s['image_url'] ?? '',
         'isFavorite': false,
         'tags': <String>[],
       };
@@ -116,7 +109,7 @@ class _HomePageState extends State<HomePage> {
         'category': 'ร้านค้า',
         'marketName': s['market_name'] ?? '-',
         'isOpen': s['is_open'] == 1,
-        'image': s['image_url'],
+        'image': s['image_url'] ?? '',
         'isFavorite': true,
         'tags': <String>[],
       };
@@ -124,7 +117,6 @@ class _HomePageState extends State<HomePage> {
     if (mounted) {
       setState(() {
         _userFavorites = favs;
-        // sync heart state in _recommendedShops
         final favIds = favs.map((f) => f['id']).toSet();
         for (final s in _recommendedShops) {
           s['isFavorite'] = favIds.contains(s['id']);
@@ -140,12 +132,12 @@ class _HomePageState extends State<HomePage> {
     }
     final sellerId = int.tryParse(shop['id']?.toString() ?? '') ?? 0;
     if (sellerId == 0) return;
-
     final isFav = shop['isFavorite'] == true;
     if (isFav) {
-      await ApiService.removeFavorite(userId: _userId!, sellerId: sellerId);
+      await ApiService.removeFavorite(
+          _userId!, int.tryParse(shop['id']?.toString() ?? '0') ?? 0);
     } else {
-      await ApiService.addFavorite(userId: _userId!, sellerId: sellerId);
+      await ApiService.addFavorite(userId: _userId!, marketId: sellerId);
     }
     setState(() {
       shop['isFavorite'] = !isFav;
@@ -156,7 +148,6 @@ class _HomePageState extends State<HomePage> {
       } else {
         _userFavorites.removeWhere((s) => s['id'] == shop['id']);
       }
-      // sync heart state in _recommendedShops list
       for (final s in _recommendedShops) {
         if (s['id'] == shop['id']) s['isFavorite'] = !isFav;
       }
@@ -286,9 +277,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // Navigation
-  // ══════════════════════════════════════════════════════════
   void _navigateToPage(int index) {
     if (index == currentIndex) return;
     switch (index) {
@@ -325,9 +313,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  // Build
-  // ══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -338,7 +323,6 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
-
     return Theme(
       data: Theme.of(context).copyWith(
         textTheme: GoogleFonts.kanitTextTheme(Theme.of(context).textTheme),
@@ -356,7 +340,6 @@ class _HomePageState extends State<HomePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Header ──────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     child: Row(
@@ -379,7 +362,7 @@ class _HomePageState extends State<HomePage> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              _userRole == 'vendor' ? ' ผู้ค้า' : ' ลูกค้า',
+                              _userRole == 'vendor' ? '🏪 ผู้ค้า' : '🛍 ลูกค้า',
                               style: GoogleFonts.kanit(
                                 fontSize: 12,
                                 color: Colors.white,
@@ -389,7 +372,6 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                   ),
-                  // ── Search Bar ───────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                     child: GestureDetector(
@@ -429,7 +411,6 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
-                  // ── Content ──────────────────────────────
                   Expanded(
                     child: RefreshIndicator(
                       color: const Color(0xFF8CBC63),
@@ -437,12 +418,11 @@ class _HomePageState extends State<HomePage> {
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                         children: [
-                          // ถ้า login แล้วและมีถูกใจ → แสดง favorites section
-                          if (_userRole != null && _userFavorites.isNotEmpty) ...[
+                          if (_userRole != null &&
+                              _userFavorites.isNotEmpty) ...[
                             _buildUserFavoriteSection(),
                             const SizedBox(height: 20),
                           ],
-                          // แสดงร้านแนะนำเสมอ (guest + logged-in)
                           _buildRecommendedShopsSection(),
                           const SizedBox(height: 20),
                           _buildRecommendedMarketsSection(),
@@ -465,9 +445,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // Section ร้านแนะนำ (Guest)
-  // ══════════════════════════════════════════════════════════
   Widget _buildRecommendedShopsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,7 +505,8 @@ class _HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               color: const Color(0xFFF0F9EB),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF8CBC63).withOpacity(0.3)),
+              border:
+                  Border.all(color: const Color(0xFF8CBC63).withOpacity(0.3)),
             ),
             child: Row(
               children: [
@@ -565,7 +543,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ── Recommended Shop Card ────────────────────────────────
   Widget _buildRecommendedShopCard(Map<String, dynamic> shop) {
     return Container(
       width: 155,
@@ -620,24 +597,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              if (shop['highlight'] != null)
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      shop['highlight'],
-                      style:
-                          GoogleFonts.kanit(fontSize: 9, color: Colors.white),
-                    ),
-                  ),
-                ),
               Positioned(
                 top: 6,
                 right: 6,
@@ -697,7 +656,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ── View More Button ─────────────────────────────────────
   Widget _buildViewMoreButton() {
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -740,9 +698,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // Section ร้านที่ถูกใจ (User ที่ Login แล้ว)
-  // ══════════════════════════════════════════════════════════
   Widget _buildUserFavoriteSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -782,51 +737,24 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         const SizedBox(height: 12),
-        if (_userFavorites.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                const Icon(Icons.favorite_border_rounded,
-                    color: Color(0xFF8CBC63), size: 40),
-                const SizedBox(height: 8),
-                Text(
-                  'ยังไม่มีร้านที่ถูกใจ',
-                  style: GoogleFonts.kanit(color: Colors.grey),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'กดหัวใจที่ร้านไหนก็ได้เพื่อบันทึก',
-                  style: GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          )
-        else
-          SizedBox(
-            height: 165,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _userFavorites.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) {
-                if (i == _userFavorites.length) {
-                  return _buildViewMoreButton();
-                }
-                return _buildUserFavoriteCard(_userFavorites[i]);
-              },
-            ),
+        SizedBox(
+          height: 165,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _userFavorites.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) {
+              if (i == _userFavorites.length) {
+                return _buildViewMoreButton();
+              }
+              return _buildUserFavoriteCard(_userFavorites[i]);
+            },
           ),
+        ),
       ],
     );
   }
 
-  // ── User Favorite Card ───────────────────────────────────
   Widget _buildUserFavoriteCard(Map<String, dynamic> shop) {
     return Container(
       width: 155,
@@ -933,9 +861,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // Section ตลาดแนะนำ
-  // ══════════════════════════════════════════════════════════
   Widget _buildRecommendedMarketsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -990,7 +915,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ── Market Card ──────────────────────────────────────────
   Widget _buildMarketCard(Map<String, dynamic> market) {
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -1073,31 +997,11 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      if ((market['eventCount'] ?? 0) > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '🎉 มีงาน ${market['eventCount']} งาน',
-                              style: GoogleFonts.kanit(
-                                fontSize: 11,
-                                color: Colors.orange,
-                              ),
-                            ),
-                          ),
-                        ),
-                      if ((market['location'] ?? '').toString().isNotEmpty ||
-                          (market['distance'] ?? '').toString().isNotEmpty)
+                      if ((market['location'] ?? '').toString().isNotEmpty)
                         Text(
-                          '📍 ${(market['distance'] ?? '').toString().isNotEmpty ? market['distance'] : market['location']}',
-                          style:
-                              GoogleFonts.kanit(fontSize: 12, color: Colors.grey),
+                          '📍 ${market['location']}',
+                          style: GoogleFonts.kanit(
+                              fontSize: 12, color: Colors.grey),
                         ),
                       Text(
                         '🕐 ${market['openTime'] ?? ''}',
@@ -1108,7 +1012,8 @@ class _HomePageState extends State<HomePage> {
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
-                        children: ((market['tags'] as List?)?.cast<String>() ?? <String>[])
+                        children: ((market['tags'] as List?)?.cast<String>() ??
+                                <String>[])
                             .take(3)
                             .map((tag) => _buildTag(tag))
                             .toList(),
@@ -1124,9 +1029,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // Reusable Widgets
-  // ══════════════════════════════════════════════════════════
   Widget _buildStatusBadge(bool isOpen, {bool small = false}) {
     return Container(
       padding: EdgeInsets.symmetric(
@@ -1176,7 +1078,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ── Bottom Nav ───────────────────────────────────────────
   Widget _buildBottomNav() {
     final items = [
       {'icon': Icons.favorite_rounded, 'label': 'ถูกใจ'},
@@ -1185,9 +1086,7 @@ class _HomePageState extends State<HomePage> {
       {'icon': Icons.shopping_cart_outlined, 'label': 'ร้านค้า'},
       {'icon': Icons.account_circle_rounded, 'label': 'โปรไฟล์'},
     ];
-
     final double itemWidth = MediaQuery.of(context).size.width / items.length;
-
     return SizedBox(
       height: 90,
       child: Stack(
@@ -1276,16 +1175,12 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// Wave Painter
-// ══════════════════════════════════════════════════════════
 class _TopWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = const Color(0xFF8CBC63)
       ..style = PaintingStyle.fill;
-
     final path = Path()
       ..moveTo(0, 0)
       ..lineTo(0, size.height * 0.75)
@@ -1295,7 +1190,6 @@ class _TopWavePainter extends CustomPainter {
           size.width * 0.75, size.height * 0.7, size.width, size.height * 0.9)
       ..lineTo(size.width, 0)
       ..close();
-
     canvas.drawPath(path, paint);
   }
 

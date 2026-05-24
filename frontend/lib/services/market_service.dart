@@ -10,8 +10,10 @@ class MarketService {
 
   Future<List<Map<String, dynamic>>> getAllMarkets() async => getMarkets();
 
-  // TODO: เพิ่ม GET /markets?status=pending ใน backend
-  Future<List<Map<String, dynamic>>> getPendingRequests() async => [];
+  Future<List<Map<String, dynamic>>> getPendingRequests() async {
+    final all = await getMarketOwnerUsers();
+    return all.where((u) => u['status'] == 'pending').toList();
+  }
 
   Future<Map<String, dynamic>?> getMarketById(String id) async {
     final markets = await getMarkets();
@@ -34,7 +36,8 @@ class MarketService {
     return raw.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getMarketOwnerBookings(String ownerId) async {
+  Future<List<Map<String, dynamic>>> getMarketOwnerBookings(
+      String ownerId) async {
     final id = int.tryParse(ownerId) ?? 0;
     final result = await ApiService.getMarketOwnerBookings(id);
     if (!result['success']) return [];
@@ -60,13 +63,16 @@ class MarketService {
     return {'success': false, 'message': 'status ไม่ถูกต้อง'};
   }
 
-  Future<Map<String, dynamic>> approveMarket(String userId) async {
-    final id = int.tryParse(userId) ?? 0;
+  // ✅ แก้ไข: รับ dynamic แล้วแปลงเป็น int ภายใน
+  Future<Map<String, dynamic>> approveMarket(dynamic userId) async {
+    final id = userId is int ? userId : int.tryParse(userId.toString()) ?? 0;
     return ApiService.approveUser(id);
   }
 
-  Future<Map<String, dynamic>> rejectMarket(String userId, {String reason = ''}) async {
-    final id = int.tryParse(userId) ?? 0;
+  // ✅ แก้ไข: รับ dynamic แล้วแปลงเป็น int ภายใน
+  Future<Map<String, dynamic>> rejectMarket(dynamic userId,
+      {String reason = ''}) async {
+    final id = userId is int ? userId : int.tryParse(userId.toString()) ?? 0;
     return ApiService.rejectUser(id);
   }
 
@@ -77,14 +83,16 @@ class MarketService {
     return raw
         .where((u) => (u as Map<String, dynamic>)['role'] == 'market')
         .map((u) => {
-              'id': u['id'].toString(),
+              'id': u['id'], // ✅ เก็บเป็น int ไว้
               'marketName': u['name'] ?? '-',
               'ownerName': u['name'] ?? '-',
               'email': u['email'] ?? '-',
               'status': u['status'] ?? 'pending',
-              'phone': '-',
+              'phone': u['phone'] ?? '-',
               'location': '-',
-              'submittedAt': '-',
+              'description': '-',
+              'submittedAt': u['created_at'] ?? '-',
+              'rejectReason': u['reject_reason'],
             })
         .toList();
   }

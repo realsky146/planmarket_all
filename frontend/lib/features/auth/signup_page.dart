@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../services/auth_service.dart';
 import '../guest/home_page.dart';
 import '../vendor/vendor_home.dart';
@@ -9,7 +8,6 @@ import '../vendor/vendor_home.dart';
 class SignUpPage extends StatefulWidget {
   final String role;
   const SignUpPage({super.key, required this.role});
-
   @override
   State<SignUpPage> createState() => _SignUpPageState();
 }
@@ -19,7 +17,6 @@ class _SignUpPageState extends State<SignUpPage> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-
   bool _obscure = true;
   bool _loading = false;
   String? _errorMsg;
@@ -48,13 +45,12 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
-      // ✅ เรียก signUp (ไม่ใช่ signIn)
       final result = await AuthService().signUp(
         name: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
-        role: widget.role, // ✅ ใช้ widget.role ได้แล้ว
+        role: widget.role,
       );
 
       if (mounted) {
@@ -65,15 +61,14 @@ class _SignUpPageState extends State<SignUpPage> {
           await prefs.setString('role', widget.role);
           await prefs.setString('status', 'active');
           await prefs.setString('email', _emailCtrl.text.trim());
-          await prefs.setString('userId', result['userId'] ?? ''); // ✅ เพิ่ม
+          await prefs.setString('userId', result['userId'] ?? '');
 
           if (!mounted) return;
 
-          // ✅ Route ตาม role แทนที่จะไป Profile ตรง ๆ
           Widget page;
           switch (widget.role) {
             case 'vendor':
-              page = const VendorHome();
+              page = VendorHome();
               break;
             case 'customer':
             default:
@@ -119,7 +114,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 width: double.infinity,
                 child: CustomPaint(painter: _TopWavePainter()),
               ),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -147,13 +141,11 @@ class _SignUpPageState extends State<SignUpPage> {
                       ],
                     ),
                   ),
-
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
                           const SizedBox(height: 16),
-
                           // Logo
                           SizedBox(
                             width: 140,
@@ -169,7 +161,6 @@ class _SignUpPageState extends State<SignUpPage> {
                             ),
                           ),
                           const SizedBox(height: 20),
-
                           // Form
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -178,7 +169,6 @@ class _SignUpPageState extends State<SignUpPage> {
                               children: [
                                 // Error Box
                                 if (_errorMsg != null) _buildErrorBox(),
-
                                 // ชื่อ
                                 _buildLabel('ชื่อ-นามสกุล'),
                                 const SizedBox(height: 6),
@@ -188,7 +178,6 @@ class _SignUpPageState extends State<SignUpPage> {
                                   keyboardType: TextInputType.name,
                                 ),
                                 const SizedBox(height: 14),
-
                                 // Email
                                 _buildLabel('E-mail'),
                                 const SizedBox(height: 6),
@@ -198,7 +187,6 @@ class _SignUpPageState extends State<SignUpPage> {
                                   keyboardType: TextInputType.emailAddress,
                                 ),
                                 const SizedBox(height: 14),
-
                                 // Password
                                 _buildLabel('Password'),
                                 const SizedBox(height: 6),
@@ -219,7 +207,6 @@ class _SignUpPageState extends State<SignUpPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 14),
-
                                 // เบอร์โทร
                                 _buildLabel('เบอร์โทรศัพท์'),
                                 const SizedBox(height: 6),
@@ -229,7 +216,6 @@ class _SignUpPageState extends State<SignUpPage> {
                                   keyboardType: TextInputType.phone,
                                 ),
                                 const SizedBox(height: 28),
-
                                 // ปุ่ม
                                 Row(
                                   children: [

@@ -116,7 +116,7 @@ class _SignUpVendorPageState extends State<SignUpVendorPage> {
           if (!mounted) return;
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (_) => const VendorHome()),
+            MaterialPageRoute(builder: (_) => VendorHome()),
             (route) => false,
           );
         } else {

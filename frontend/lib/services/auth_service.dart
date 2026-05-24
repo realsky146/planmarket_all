@@ -3,32 +3,14 @@ import 'api_service.dart';
 
 class AuthService {
   // ══════════════════════════════════════════════════════════
-  // signIn
+  // signIn — เชื่อม Backend จริง 100% ไม่มี Hardcode แล้ว
   // ══════════════════════════════════════════════════════════
   Future<Map<String, dynamic>> signIn({
     required String email,
     required String password,
     required String role,
   }) async {
-    // Super Admin — hardcode
-    if (email == 'admin@planmarket.com') {
-      if (password == 'admin1234') {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('role', 'super_admin');
-        await prefs.setString('status', 'active');
-        await prefs.setString('email', email);
-        await prefs.setString('userId', '0');
-        await prefs.setString('userName', 'Super Admin');
-        return {
-          'success': true,
-          'role': 'super_admin',
-          'status': 'active',
-          'user': {'id': 0, 'name': 'Super Admin', 'email': email, 'role': 'super_admin'},
-        };
-      }
-      return {'success': false, 'message': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'};
-    }
-
+    // ยิง API ล็อกอินไปที่หลังบ้านสำหรับทุก User (รวมถึง Admin)
     final result = await ApiService.login(email: email, password: password);
     if (!result['success']) return result;
 
@@ -36,21 +18,29 @@ class AuthService {
     final dbRole = user['role'] as String;
     final flutterRole = _dbRoleToFlutter(dbRole);
 
+    // ตรวจสอบประเภทบัญชีให้ตรงกับที่เลือกล็อกอินเข้าใช้งาน
     if (role != 'super_admin' && role != 'customer') {
       final expectedDb = _flutterRoleToDb(role);
       if (dbRole != expectedDb) {
-        return {'success': false, 'message': 'บัญชีนี้ไม่ใช่ประเภท "${_roleLabel(role)}"'};
+        return {
+          'success': false,
+          'message': 'บัญชีนี้ไม่ใช่ประเภท "${_roleLabel(role)}"'
+        };
       }
     }
 
     final status = (user['status'] as String?) ?? 'approved';
 
+    // บันทึกข้อมูลผู้ใช้จริงลงเครื่องผ่าน SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('role', flutterRole);
     await prefs.setString('status', status);
     await prefs.setString('email', email);
     await prefs.setString('userId', user['id'].toString());
     await prefs.setString('userName', (user['name'] as String?) ?? '');
+
+    // บันทึกเหตุผลการรีเจกต์จริงจากฐานข้อมูล (ถ้ามี)
+    await prefs.setString('reject_reason', user['reject_reason'] ?? '');
 
     return {
       'success': true,
@@ -85,7 +75,11 @@ class AuthService {
     await prefs.setString('userId', result['userId'].toString());
     await prefs.setString('userName', name);
 
-    return {'success': true, 'role': role, 'userId': result['userId'].toString()};
+    return {
+      'success': true,
+      'role': role,
+      'userId': result['userId'].toString()
+    };
   }
 
   // ══════════════════════════════════════════════════════════
@@ -139,6 +133,7 @@ class AuthService {
       'name': prefs.getString('userName') ?? '',
       'role': prefs.getString('role') ?? '',
       'status': prefs.getString('status') ?? 'active',
+      'reject_reason': prefs.getString('reject_reason') ?? '',
     };
   }
 
@@ -147,19 +142,22 @@ class AuthService {
   // ─────────────────────────────────────────────
   static String _flutterRoleToDb(String r) {
     if (r == 'vendor') return 'seller';
-    if (r == 'market_owner' || r == 'market') return 'market';
+    if (r == 'market_owner' || r == 'market' || r == 'super_admin')
+      return 'market';
     return r;
   }
 
   static String _dbRoleToFlutter(String r) {
     if (r == 'seller') return 'vendor';
     if (r == 'market') return 'market_owner';
+    if (r == 'super_admin') return 'super_admin';
     return r;
   }
 
   static String _roleLabel(String r) {
     if (r == 'vendor') return 'ร้านค้า';
     if (r == 'market_owner' || r == 'market') return 'เจ้าของตลาด';
+    if (r == 'super_admin') return 'ผู้ดูแลระบบ';
     return r;
   }
 }
