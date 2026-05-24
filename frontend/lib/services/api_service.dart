@@ -249,7 +249,14 @@ class ApiService {
           .get(Uri.parse('$baseUrl/users'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
-        return {'success': true, 'data': jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>};
+        final decoded = jsonDecode(utf8.decode(res.bodyBytes));
+        List<dynamic> data = [];
+        if (decoded is List) {
+          data = decoded;
+        } else if (decoded is Map && decoded['data'] != null) {
+          data = List<dynamic>.from(decoded['data']);
+        }
+        return {'success': true, 'data': data};
       }
       return {'success': false, 'message': 'โหลด users ไม่สำเร็จ'};
     } catch (e) {
@@ -260,7 +267,11 @@ class ApiService {
   static Future<Map<String, dynamic>> approveUser(int userId) async {
     try {
       final res = await _client
-          .patch(Uri.parse('$baseUrl/users/$userId/approve'), headers: _headers)
+          .put(
+            Uri.parse('$baseUrl/users/$userId'),
+            headers: _headers,
+            body: jsonEncode({'status': 'approved'}),
+          )
           .timeout(const Duration(seconds: 10));
       final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       return res.statusCode == 200
@@ -274,7 +285,11 @@ class ApiService {
   static Future<Map<String, dynamic>> rejectUser(int userId) async {
     try {
       final res = await _client
-          .patch(Uri.parse('$baseUrl/users/$userId/reject'), headers: _headers)
+          .put(
+            Uri.parse('$baseUrl/users/$userId'),
+            headers: _headers,
+            body: jsonEncode({'status': 'rejected'}),
+          )
           .timeout(const Duration(seconds: 10));
       final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       return res.statusCode == 200
