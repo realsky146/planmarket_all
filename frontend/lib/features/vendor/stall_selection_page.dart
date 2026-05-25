@@ -30,15 +30,36 @@ class _StallSelectionPageState extends State<StallSelectionPage> {
   Future<void> _loadStalls() async {
     setState(() => _isLoading = true);
     try {
-      final marketId = widget.market['id']?.toString() ?? '';
-      final response = await ApiService.getStalls(marketId);
+      // ✅ แปลงเป็น int
+      final marketId = int.tryParse(widget.market['market_id']?.toString() ??
+              widget.market['id']?.toString() ??
+              '0') ??
+          0;
+
+      if (marketId == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'ไม่พบข้อมูลตลาด',
+                style: GoogleFonts.kanit(),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final response = await ApiService.getMarketStalls(marketId);
 
       if (response['success'] == true && response['data'] != null) {
         final List<dynamic> raw = response['data'];
         setState(() {
           _stalls = raw
               .map((s) => {
-                    'id': s['id']?.toString() ?? '',
+                    'id':
+                        s['stall_id']?.toString() ?? s['id']?.toString() ?? '',
                     'stallNumber': s['stall_number'] ?? s['name'] ?? '-',
                     'size': s['size'] ?? 'ไม่ระบุ',
                     'price': s['price'] ?? s['price_per_day'] ?? 0,
@@ -47,9 +68,32 @@ class _StallSelectionPageState extends State<StallSelectionPage> {
                   })
               .toList();
         });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                response['message'] ?? 'โหลดข้อมูลแผงไม่สำเร็จ',
+                style: GoogleFonts.kanit(),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('❌ Error loading stalls: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'เกิดข้อผิดพลาด: $e',
+              style: GoogleFonts.kanit(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -140,7 +184,6 @@ class _StallSelectionPageState extends State<StallSelectionPage> {
               ],
             ),
           ),
-
           // ── Legend ──────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -154,9 +197,7 @@ class _StallSelectionPageState extends State<StallSelectionPage> {
               ],
             ),
           ),
-
           const SizedBox(height: 8),
-
           // ── Stall Grid ──────────────────────────────
           Expanded(
             child: _isLoading
@@ -202,7 +243,6 @@ class _StallSelectionPageState extends State<StallSelectionPage> {
           ),
         ],
       ),
-
       // ── ปุ่มยืนยัน ──────────────────────────────────
       bottomNavigationBar: _selectedStallId != null
           ? Container(
@@ -320,7 +360,6 @@ class _StallSelectionPageState extends State<StallSelectionPage> {
           ? () {
               setState(() {
                 if (_selectedStallId == stall['id']) {
-                  // ยกเลิกการเลือก
                   _selectedStallId = null;
                   _selectedStallNumber = null;
                 } else {

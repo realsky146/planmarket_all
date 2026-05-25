@@ -20,9 +20,25 @@ class BookingConfirmPage extends StatefulWidget {
 
 class _BookingConfirmPageState extends State<BookingConfirmPage> {
   bool _isBooking = false;
+  final TextEditingController _shopNameController =
+      TextEditingController(); // ✅ เพิ่ม controller
+
+  @override
+  void dispose() {
+    _shopNameController.dispose();
+    super.dispose();
+  }
 
   Future<void> _confirmBooking() async {
+    // ✅ ตรวจสอบชื่อร้านค้า
+    final shopName = _shopNameController.text.trim();
+    if (shopName.isEmpty) {
+      _showErrorDialog('กรุณากรอกชื่อร้านค้า');
+      return;
+    }
+
     setState(() => _isBooking = true);
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = int.tryParse(prefs.getString('userId') ?? '0') ?? 0;
@@ -32,11 +48,22 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
         return;
       }
 
-      final stallId = int.tryParse(widget.stall['id']?.toString() ?? '0') ?? 0;
+      // ✅ ดึง stallId จาก widget.stall
+      final stallId = int.tryParse(widget.stall['stall_id']?.toString() ??
+              widget.stall['id']?.toString() ??
+              '0') ??
+          0;
 
+      if (stallId == 0) {
+        _showErrorDialog('ไม่พบข้อมูลแผงขาย');
+        return;
+      }
+
+      // ✅ เรียก API ด้วยพารามิเตอร์ที่ถูกต้อง
       final response = await ApiService.createBooking(
-        userId: userId,
         stallId: stallId,
+        sellerId: userId, // ✅ ใช้ sellerId แทน userId
+        shopName: shopName, // ✅ เพิ่ม shopName
       );
 
       if (response['success'] == true) {
@@ -142,7 +169,15 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
                           _confirmRow(
                             Icons.grid_view_rounded,
                             'แผง',
-                            widget.stall['stallNumber'] ?? '-',
+                            widget.stall['stallNumber'] ??
+                                widget.stall['stall_number'] ??
+                                '-',
+                          ),
+                          const Divider(height: 16),
+                          _confirmRow(
+                            Icons.store_rounded,
+                            'ชื่อร้านค้า',
+                            _shopNameController.text,
                           ),
                         ],
                       ),
@@ -326,7 +361,6 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
               ],
             ),
           ),
-
           // ── Content ──
           Expanded(
             child: SingleChildScrollView(
@@ -375,7 +409,9 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
                         _confirmRow(
                           Icons.grid_view_rounded,
                           'แผงที่เลือก',
-                          widget.stall['stallNumber'] ?? '-',
+                          widget.stall['stallNumber'] ??
+                              widget.stall['stall_number'] ??
+                              '-',
                         ),
                         const SizedBox(height: 12),
                         _confirmRow(
@@ -389,12 +425,59 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
                           'โซน',
                           widget.stall['zone'] ?? '-',
                         ),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        // ✅ เพิ่ม TextField สำหรับชื่อร้านค้า
+                        Text(
+                          'ชื่อร้านค้า',
+                          style: GoogleFonts.kanit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1F2937),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _shopNameController,
+                          decoration: InputDecoration(
+                            hintText: 'กรอกชื่อร้านค้าของคุณ',
+                            hintStyle: GoogleFonts.kanit(
+                              color: Colors.grey,
+                              fontSize: 14,
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF9FAFB),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF8CBC63),
+                                width: 2,
+                              ),
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.store_rounded,
+                              color: Color(0xFF8CBC63),
+                            ),
+                          ),
+                          style: GoogleFonts.kanit(fontSize: 14),
+                        ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   // ── ข้อมูลเพิ่มเติม ──
                   Container(
                     width: double.infinity,
@@ -444,7 +527,6 @@ class _BookingConfirmPageState extends State<BookingConfirmPage> {
               ),
             ),
           ),
-
           // ── ปุ่มยืนยัน ──
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
