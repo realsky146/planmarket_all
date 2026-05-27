@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+﻿// lib/features/vendor/favorite_vendor_page.dart
+
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plan_market/services/api_service.dart';
@@ -9,6 +11,7 @@ import 'profile_vendor_page.dart';
 
 class VendorFavoritePage extends StatefulWidget {
   const VendorFavoritePage({super.key});
+
   @override
   State<VendorFavoritePage> createState() => _VendorFavoritePageState();
 }
@@ -17,6 +20,8 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
   int currentIndex = 0;
   bool _isLoading = true;
   int? _userId;
+
+  // ✅ เปลี่ยนเป็นเก็บตลาดที่ถูกใจ
   List<Map<String, dynamic>> _favorites = [];
 
   @override
@@ -34,43 +39,71 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
     if (mounted) setState(() => _isLoading = false);
   }
 
+  // ✅ โหลดตลาดที่ถูกใจจาก DB
   Future<void> _loadFavorites() async {
-    final result = await ApiService.getFavorites(_userId!);
+    if (_userId == null) return;
+
+    final result = await ApiService.getMarketFavorites(_userId!);
+
     if (!result['success']) {
       if (mounted) setState(() => _favorites = []);
       return;
     }
+
     final raw = result['data'] as List<dynamic>;
     final favs = raw.map((e) {
-      final s = e as Map<String, dynamic>;
+      final m = e as Map<String, dynamic>;
       return {
-        'id': s['seller_id'],
-        'shopName': s['shop_name'] ?? '-',
-        'category': 'ร้านค้า',
-        'image': s['image_url'] ?? '',
-        'isOpen': s['status'] == 'approved',
-        'marketName': '-',
-        'distance': '-',
+        'id': m['market_id']?.toString() ?? '', // ใช้ market_id
+        'name': m['name'] ?? '-', // ชื่อตลาด
+        'category': 'ตลาด',
+        'image': m['image_url'] ?? '',
+        'isOpen': true, // default เปิด
+        'location': m['location'] ?? '-', // ที่ตั้ง
         'isFavorite': true,
         'tags': <String>[],
+        'type': 'market',
       };
     }).toList();
+
     if (mounted) setState(() => _favorites = favs);
   }
 
-  Future<void> _removeFavorite(Map<String, dynamic> shop) async {
-    final sellerId = int.tryParse(shop['id']?.toString() ?? '') ?? 0;
-    if (sellerId == 0 || _userId == null) return;
-    await ApiService.removeFavorite(
-        _userId!, int.tryParse(shop['id']?.toString() ?? '0') ?? 0);
+  // ✅ ลบตลาดออกจากถูกใจ → เรียก removeMarketFavorite
+  Future<void> _removeFavorite(Map<String, dynamic> market) async {
+    final marketId = int.tryParse(market['id']?.toString() ?? '') ?? 0;
+    if (marketId == 0 || _userId == null) return;
+
+    // Optimistic UI — เอาออกก่อน
     setState(() {
-      _favorites.removeWhere((s) => s['id'] == shop['id']);
+      _favorites.removeWhere((m) => m['id'] == market['id']);
     });
+
+    final result = await ApiService.removeMarketFavorite(_userId!, marketId);
+
+    if (!result['success']) {
+      // Rollback ถ้า error
+      setState(() => _favorites.add(market));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('เกิดข้อผิดพลาด กรุณาลองใหม่', style: GoogleFonts.kanit()),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+      return;
+    }
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'นำออกจากรายการถูกใจแล้ว',
+            'นำตลาดออกจากรายการถูกใจแล้ว',
             style: GoogleFonts.kanit(),
           ),
           backgroundColor: Colors.grey,
@@ -92,20 +125,28 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
         case 0:
           break;
         case 1:
-          Navigator.pushReplacement(context,
-              MaterialPageRoute(builder: (_) => VendorMarketListPage()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => VendorMarketListPage()),
+          );
           break;
         case 2:
           Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => VendorHome()));
+            context,
+            MaterialPageRoute(builder: (_) => VendorHome()),
+          );
           break;
         case 3:
-          Navigator.pushReplacement(context,
-              MaterialPageRoute(builder: (_) => const VendorShopInfoPage()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const VendorShopInfoPage()),
+          );
           break;
         case 4:
-          Navigator.pushReplacement(context,
-              MaterialPageRoute(builder: (_) => const VendorProfilePage()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const VendorProfilePage()),
+          );
           break;
       }
     });
@@ -130,6 +171,7 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Header ──
                   Padding(
                     padding: const EdgeInsets.fromLTRB(8, 14, 16, 0),
                     child: Row(
@@ -140,10 +182,20 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                             color: Colors.white,
                             size: 20,
                           ),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            } else {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (_) => VendorHome()),
+                              );
+                            }
+                          },
                         ),
+                        // ✅ เปลี่ยน title
                         Text(
-                          'ร้านที่ถูกใจ',
+                          'ตลาดที่ถูกใจ',
                           style: GoogleFonts.kanit(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -162,7 +214,8 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              '${_favorites.length} ร้าน',
+                              // ✅ เปลี่ยนเป็น "ตลาด"
+                              '${_favorites.length} ตลาด',
                               style: GoogleFonts.kanit(
                                 fontSize: 12,
                                 color: Colors.white,
@@ -172,11 +225,14 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                       ],
                     ),
                   ),
+
+                  // ── List ──
                   Expanded(
                     child: _isLoading
                         ? const Center(
                             child: CircularProgressIndicator(
-                                color: Color(0xFF8CBC63)))
+                                color: Color(0xFF8CBC63)),
+                          )
                         : _favorites.isEmpty
                             ? _buildEmptyState()
                             : RefreshIndicator(
@@ -195,6 +251,8 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                   ),
                 ],
               ),
+
+              // ── Bottom Nav ──
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -220,17 +278,21 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
               color: const Color(0xFF8CBC63).withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.favorite_border_rounded,
-                size: 40, color: Color(0xFF8CBC63)),
+            child: const Icon(
+              Icons.favorite_border_rounded,
+              size: 40,
+              color: Color(0xFF8CBC63),
+            ),
           ),
           const SizedBox(height: 16),
+          // ✅ ข้อความ empty state ปรับเป็น "ตลาด"
           Text(
-            'ยังไม่มีร้านที่ถูกใจ',
+            'ยังไม่มีตลาดที่ถูกใจ',
             style: GoogleFonts.kanit(fontSize: 16, color: Colors.grey),
           ),
           const SizedBox(height: 8),
           Text(
-            'กดหัวใจที่ร้านค้าเพื่อบันทึก',
+            'กดหัวใจที่การ์ดตลาดเพื่อบันทึก',
             style: GoogleFonts.kanit(fontSize: 13, color: Colors.grey),
           ),
           const SizedBox(height: 24),
@@ -259,7 +321,10 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
     );
   }
 
-  Widget _buildFavoriteCard(Map<String, dynamic> shop) {
+  // ✅ Card สำหรับแสดงตลาด
+  Widget _buildFavoriteCard(Map<String, dynamic> market) {
+    final isOpen = market['isOpen'] as bool? ?? true;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -275,6 +340,7 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── รูปตลาด ──
           ClipRRect(
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(16),
@@ -284,7 +350,7 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
               width: 110,
               height: 110,
               child: Image.network(
-                shop['image'] ?? '',
+                market['image'] ?? '',
                 fit: BoxFit.cover,
                 loadingBuilder: (_, child, progress) {
                   if (progress == null) return child;
@@ -301,21 +367,27 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                 errorBuilder: (_, __, ___) => Container(
                   color: const Color(0xFF8CBC63).withOpacity(0.15),
                   child: const Center(
-                    child: Icon(Icons.store_mall_directory_rounded,
-                        color: Color(0xFF8CBC63), size: 44),
+                    child: Icon(
+                      Icons.storefront_rounded, // ✅ icon ตลาด
+                      color: Color(0xFF8CBC63),
+                      size: 44,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
+
+          // ── ข้อมูลตลาด ──
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ชื่อตลาด
                   Text(
-                    shop['shopName'] ?? '-',
+                    market['name'] ?? '-',
                     style: GoogleFonts.kanit(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -325,12 +397,27 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    shop['category'] ?? '-',
-                    style: GoogleFonts.kanit(
-                        fontSize: 12, color: const Color(0xFF6E9B4C)),
+
+                  // category badge
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8CBC63).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      market['category'] ?? 'ตลาด',
+                      style: GoogleFonts.kanit(
+                        fontSize: 11,
+                        color: const Color(0xFF6E9B4C),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
+
+                  // ที่ตั้ง
                   Row(
                     children: [
                       const Icon(Icons.location_on_rounded,
@@ -338,7 +425,8 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                       const SizedBox(width: 2),
                       Expanded(
                         child: Text(
-                          shop['marketName'] ?? '-',
+                          // ✅ ใช้ 'location' แทน 'marketName'
+                          market['location'] ?? '-',
                           style: GoogleFonts.kanit(
                               fontSize: 11, color: Colors.grey),
                           maxLines: 1,
@@ -348,15 +436,17 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  _buildStatusBadge(shop['isOpen'] ?? false),
+                  _buildStatusBadge(isOpen),
                 ],
               ),
             ),
           ),
+
+          // ── ปุ่มนำออก ──
           Padding(
             padding: const EdgeInsets.all(8),
             child: GestureDetector(
-              onTap: () => _removeFavorite(shop),
+              onTap: () => _removeFavorite(market),
               child: Container(
                 width: 34,
                 height: 34,
@@ -365,8 +455,11 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.red.withOpacity(0.2)),
                 ),
-                child: const Icon(Icons.favorite,
-                    color: Colors.redAccent, size: 18),
+                child: const Icon(
+                  Icons.favorite,
+                  color: Colors.redAccent,
+                  size: 18,
+                ),
               ),
             ),
           ),
@@ -389,7 +482,9 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
             width: 5,
             height: 5,
             decoration: const BoxDecoration(
-                color: Colors.white, shape: BoxShape.circle),
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
           ),
           const SizedBox(width: 3),
           Text(
@@ -414,6 +509,7 @@ class _VendorFavoritePageState extends State<VendorFavoritePage> {
       {'icon': Icons.account_circle_rounded, 'label': 'โปรไฟล์'},
     ];
     final double itemWidth = MediaQuery.of(context).size.width / items.length;
+
     return SizedBox(
       height: 90,
       child: Stack(

@@ -53,7 +53,7 @@ export const initDb = () => {
         )
       `);
 
-      // 4. Bookings Table (ปรับ Schema ให้รองรับฟีเจอร์จองรายวัน/รายเดือน และปุ่ม Approve/Reject)
+      // 4. Bookings Table
       db.run(`
         CREATE TABLE IF NOT EXISTS bookings (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,15 +65,15 @@ export const initDb = () => {
           booking_type TEXT DEFAULT 'daily',
           total_price REAL,
           status TEXT NOT NULL DEFAULT 'pending',
-          reason TEXT,                  -- ✅ เก็บเหตุผลการปฏิเสธ
-          notified INTEGER DEFAULT 0,   -- ✅ สถานะการแจ้งเตือน Popup
+          reason TEXT,
+          notified INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (stall_id) REFERENCES stalls(id),
           FOREIGN KEY (seller_id) REFERENCES users(id)
         )
       `);
 
-      // 5. Favorites Table
+      // 5. Shop Favorites Table (ถูกใจร้านค้า — เดิม)
       db.run(`
         CREATE TABLE IF NOT EXISTS favorites (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,6 +84,19 @@ export const initDb = () => {
           FOREIGN KEY (user_id) REFERENCES users(id),
           FOREIGN KEY (seller_id) REFERENCES users(id)
         )
+      `);
+
+      // ✅ 6. Market Favorites Table (ถูกใจตลาด — ใหม่)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS market_favorites (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          market_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, market_id),
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (market_id) REFERENCES markets(id)
+        )
       `, (err) => {
         if (err) {
           console.error("❌ Error creating tables:", err);
@@ -92,8 +105,9 @@ export const initDb = () => {
 
         console.log("✅ Database tables initialized");
 
-        // 🔥 [SPECIAL PATCH] บังคับตรวจสอบและอัปเดตคอลัมน์กรณีที่ระบบเคยสร้างตารางเก่าค้างไว้แล้ว
+        // 🔥 [SPECIAL PATCH] ตรวจสอบคอลัมน์กรณีตารางเก่า
         db.serialize(() => {
+          // --- bookings patch ---
           db.run(`ALTER TABLE bookings ADD COLUMN reason TEXT`, () => { });
           db.run(`ALTER TABLE bookings ADD COLUMN notified INTEGER DEFAULT 0`, () => { });
           db.run(`ALTER TABLE bookings ADD COLUMN start_date DATE`, () => { });
@@ -101,13 +115,26 @@ export const initDb = () => {
           db.run(`ALTER TABLE bookings ADD COLUMN booking_type TEXT DEFAULT 'daily'`, () => { });
           db.run(`ALTER TABLE bookings ADD COLUMN total_price REAL`, () => { });
 
-          // patch สำหรับ markets ที่สร้างก่อนมีฟิลด์ใหม่
+          // --- markets patch ---
           db.run(`ALTER TABLE markets ADD COLUMN price_per_day INTEGER DEFAULT 0`, () => { });
           db.run(`ALTER TABLE markets ADD COLUMN has_parking INTEGER DEFAULT 0`, () => { });
           db.run(`ALTER TABLE markets ADD COLUMN has_aircon INTEGER DEFAULT 0`, () => { });
           db.run(`ALTER TABLE markets ADD COLUMN open_weekend INTEGER DEFAULT 0`, () => { });
 
-          console.log("🛠️ [Patch Check] คอลัมน์เสริมสำหรับ Bookings และ Markets ถูกตรวจสอบและพร้อมใช้งานแล้ว!");
+          // ✅ market_favorites patch (กรณีตารางเก่าไม่มีตารางนี้)
+          db.run(`
+            CREATE TABLE IF NOT EXISTS market_favorites (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id INTEGER NOT NULL,
+              market_id INTEGER NOT NULL,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE(user_id, market_id),
+              FOREIGN KEY (user_id) REFERENCES users(id),
+              FOREIGN KEY (market_id) REFERENCES markets(id)
+            )
+          `, () => { });
+
+          console.log("🛠️ [Patch Check] คอลัมน์เสริมทั้งหมดถูกตรวจสอบและพร้อมใช้งานแล้ว!");
           resolve();
         });
       });
